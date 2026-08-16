@@ -17,7 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, macos-latest, ubuntu-22.04]
+        os: [windows-latest, macos-latest, ubuntu-22.04, ubuntu-22.04-arm]
 
     steps:
       - uses: actions/checkout@v4
@@ -43,12 +43,20 @@ jobs:
         if: runner.os == 'macOS'
         run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
 
+      - name: Add Windows ARM cross-compile target
+        if: runner.os == 'Windows'
+        run: rustup target add aarch64-pc-windows-msvc
+
       - name: Install frontend dependencies
         run: npm install
 
       - name: Build (Windows)
         if: runner.os == 'Windows'
         run: npm run tauri build -- --bundles nsis
+
+      - name: Build (Windows ARM)
+        if: runner.os == 'Windows'
+        run: npm run tauri build -- --target aarch64-pc-windows-msvc --bundles nsis
 
       - name: Build (Linux)
         if: runner.os == 'Linux'
@@ -70,6 +78,7 @@ jobs:
             src-tauri/target/release/bundle/*
             src-tauri/target/x86_64-apple-darwin/release/bundle/*
             src-tauri/target/aarch64-apple-darwin/release/bundle/*
+            src-tauri/target/aarch64-pc-windows-msvc/release/bundle/*
           if-no-files-found: error
 
   draft:
