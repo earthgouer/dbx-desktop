@@ -1,12 +1,13 @@
 const { invoke } = window.__TAURI__.core;
 
-const url = "http://127.0.0.1:3080";
 const statusEl = document.getElementById("status");
 const spinnerEl = document.getElementById("spinner");
 const urlEl = document.getElementById("url");
 const errorBox = document.getElementById("error");
 const errorText = document.getElementById("error-text");
 const retryBtn = document.getElementById("retry");
+
+let lastStatus = null;
 
 function setStatus(text, busy) {
   statusEl.textContent = text;
@@ -21,8 +22,8 @@ function showError(text) {
 
 async function probe() {
   try {
-    const s = await invoke("check_dsh");
-    return s.running === true;
+    lastStatus = await invoke("check_dsh");
+    return lastStatus.running === true;
   } catch {
     return false;
   }
@@ -37,12 +38,12 @@ async function waitReady(timeoutMs) {
   return false;
 }
 
-function open(url) {
+function open(u) {
   setStatus("dsh 已就绪，正在打开界面…", true);
   urlEl.hidden = false;
-  urlEl.textContent = "正在打开：" + url;
+  urlEl.textContent = "正在打开：" + u;
   setTimeout(() => {
-    window.location.replace(url);
+    window.location.replace(u);
   }, 300);
 }
 
@@ -59,7 +60,7 @@ async function boot() {
   }
 
   if (status.running) {
-    open(url);
+    open(status.url);
     return;
   }
 
@@ -78,7 +79,7 @@ async function boot() {
   }
 
   if (await waitReady(90000)) {
-    open(url);
+    open(lastStatus.url);
   } else {
     showError("dsh 启动超时，请检查日志后重试。");
   }
