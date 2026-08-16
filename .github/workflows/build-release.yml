@@ -1,0 +1,105 @@
+name: Build & Draft Release
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: build-release
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "20"
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-22.04]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Add macOS cross-compile targets
+        if: runner.os == 'macOS'
+        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+
+      - name: Install frontend dependencies
+        run: npm install
+
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
+        run: npm run tauri build
+
+      - name: Build (Linux)
+        if: runner.os == 'Linux'
+        run: npm run tauri build
+
+      - name: Build (macOS x86_64)
+        if: runner.os == 'macOS'
+        run: npm run tauri build -- --target x86_64-apple-darwin --bundles dmg
+
+      - name: Build (macOS aarch64)
+        if: runner.os == 'macOS'
+        run: npm run tauri build -- --target aarch64-apple-darwin --bundles dmg
+
+      - name: Upload bundles
+        uses: actions/upload-artifact@v4
+        with:
+          name: bundle-${{ matrix.os }}
+          path: |
+            src-tauri/target/release/bundle/*
+            src-tauri/target/x86_64-apple-darwin/release/bundle/*
+            src-tauri/target/aarch64-apple-darwin/release/bundle/*
+          if-no-files-found: error
+
+  draft:
+    name: Create draft release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download bundles
+        uses: actions/download-artifact@v4
+        with:
+          path: bundles
+          merge-multiple: true
+
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p "require('./src-tauri/tauri.conf.json').version")"
+          TAG="v${VERSION}-build.${RUN_NUMBER}"
+          FILES="$(find bundles -type f \( -name '*.exe' -o -name '*.msi' -o -name '*.dmg' -o -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' -o -name '*.pkg' \))"
+          if [ -z "$FILES" ]; then
+            echo "::error::no installer files found in bundles"
+            exit 1
+          fi
+          gh release create "$TAG" --draft --generate-notes \
+            --title "DSH Desktop v${VERSION} (build #${RUN_NUMBER})" \
+            $FILES
