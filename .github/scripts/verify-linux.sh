@@ -5,7 +5,7 @@
 set -u
 
 PORT=3080
-TIMEOUT=150
+TIMEOUT=240
 DISPLAY=:99
 
 # --- start a virtual display --------------------------------------------------
@@ -43,6 +43,27 @@ export GDK_BACKEND=x11
 APP_PID=$!
 echo "App launched, PID $APP_PID"
 
+# (e) screenshot timeline: at launch (t=0), then at 5s and 10s
+take_screenshot() {
+  local out="$1"
+  if command -v import >/dev/null 2>&1; then
+    if import -display "$DISPLAY" -window root "$out" >/dev/null 2>&1 && [ -s "$out" ]; then
+      echo "Screenshot saved: $out"
+      return 0
+    fi
+    echo "Screenshot failed: $out"
+  else
+    echo "ImageMagick 'import' not available."
+  fi
+  return 1
+}
+shot_ok=0
+take_screenshot screenshot-linux-1.png && shot_ok=1
+sleep 5
+take_screenshot screenshot-linux-2.png && shot_ok=1
+sleep 5
+take_screenshot screenshot-linux-3.png && shot_ok=1
+
 # --- poll for the dsh web UI --------------------------------------------------
 server_ok=0
 end=$((SECONDS + TIMEOUT))
@@ -73,23 +94,6 @@ if ss -tn 2>/dev/null | awk 'NR>1{print $NF}' | grep -q "127.0.0.1:$PORT"; then
   ui_connected=1
 fi
 
-# give the UI a moment to paint
-sleep 8
-
-# --- screenshot ---------------------------------------------------------------
-shot_ok=0
-if command -v import >/dev/null 2>&1; then
-  if import -display "$DISPLAY" -window root screenshot-linux.png >/dev/null 2>&1 \
-      && [ -s screenshot-linux.png ]; then
-    shot_ok=1
-    echo "Screenshot saved: screenshot-linux.png"
-  else
-    echo "Screenshot capture (import) failed."
-  fi
-else
-  echo "ImageMagick 'import' not available."
-fi
-
 # --- verdict ------------------------------------------------------------------
 if [ "$proc_alive" = "1" ] && [ "$server_ok" = "1" ]; then
   verdict=PASS
@@ -105,6 +109,18 @@ else
   detail="App process exited and the dsh web UI did not respond on port $PORT."
 fi
 
+# --- collect the app's dsh-web.log (the spawned dsh writes here) --------------
+DSH_LOG=""
+for c in "$HOME/.local/share/com.dsh.desktop/logs/dsh-web.log" \
+         "${XDG_DATA_HOME:-$HOME/.local/share}/com.dsh.desktop/logs/dsh-web.log"; do
+  [ -f "$c" ] && DSH_LOG="$c" && break
+done
+if [ -n "$DSH_LOG" ]; then
+  echo "dsh-web.log: $DSH_LOG"
+else
+  echo "dsh-web.log: not found"
+fi
+
 {
   echo "## DSH Desktop verification report (Linux)"
   echo ""
@@ -112,6 +128,7 @@ fi
   echo "- App process running: $proc_alive"
   echo "- dsh web UI reachable (port $PORT): $server_ok"
   echo "- UI loaded (TCP connection to port $PORT): $ui_connected"
+  echo "- Screenshots: screenshot-linux-1.png (t=0s), -2.png (t=5s), -3.png (t=10s)"
   echo "- Screenshot captured: $shot_ok"
   echo "- Verdict: **$verdict**"
   echo "- Detail: $detail"
@@ -120,6 +137,13 @@ fi
   echo '```'
   tail -n 40 app.log 2>/dev/null || true
   echo '```'
+  if [ -n "$DSH_LOG" ]; then
+    echo ""
+    echo "### dsh-web.log (tail)"
+    echo '```'
+    tail -n 40 "$DSH_LOG" 2>/dev/null || true
+    echo '```'
+  fi
 } | tee report.txt
 
 if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then

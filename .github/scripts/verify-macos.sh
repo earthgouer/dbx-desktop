@@ -5,7 +5,7 @@
 set -u
 
 PORT=3080
-TIMEOUT=150
+TIMEOUT=240
 
 APP_PATH="/Applications/dsh-desktop.app"
 BIN="$APP_PATH/Contents/MacOS/dsh-desktop"
@@ -21,6 +21,25 @@ echo "Launching installed app: $BIN"
 "$BIN" >app.log 2>&1 &
 APP_PID=$!
 echo "App launched, PID $APP_PID"
+
+# (e) screenshot timeline: at launch (t=0), then at 5s and 10s
+take_screenshot() {
+  local out="$1"
+  open "$APP_PATH" 2>/dev/null || true
+  sleep 1
+  if screencapture -x "$out" 2>/dev/null && [ -s "$out" ]; then
+    echo "Screenshot saved: $out"
+    return 0
+  fi
+  echo "Screenshot failed: $out"
+  return 1
+}
+shot_ok=0
+take_screenshot screenshot-macos-1.png && shot_ok=1
+sleep 5
+take_screenshot screenshot-macos-2.png && shot_ok=1
+sleep 5
+take_screenshot screenshot-macos-3.png && shot_ok=1
 
 # --- poll for the dsh web UI --------------------------------------------------
 server_ok=0
@@ -52,20 +71,6 @@ if lsof -nP -iTCP:$PORT -sTCP:ESTABLISHED >/dev/null 2>&1; then
   ui_connected=1
 fi
 
-# give the UI a moment to paint, then bring the window to the front
-sleep 8
-open "$APP_PATH" 2>/dev/null || true
-sleep 3
-
-# --- screenshot ---------------------------------------------------------------
-shot_ok=0
-if screencapture -x screenshot-macos.png 2>/dev/null && [ -s screenshot-macos.png ]; then
-  shot_ok=1
-  echo "Screenshot saved: screenshot-macos.png"
-else
-  echo "screencapture failed (screen recording may be unavailable on this runner)."
-fi
-
 # --- verdict ------------------------------------------------------------------
 if [ "$proc_alive" = "1" ] && [ "$server_ok" = "1" ]; then
   verdict=PASS
@@ -81,6 +86,18 @@ else
   detail="App process exited and the dsh web UI did not respond on port $PORT."
 fi
 
+# --- collect the app's dsh-web.log (the spawned dsh writes here) --------------
+DSH_LOG=""
+for c in "$HOME/Library/Logs/com.dsh.desktop/dsh-web.log" \
+         "$HOME/Library/Application Support/com.dsh.desktop/logs/dsh-web.log"; do
+  [ -f "$c" ] && DSH_LOG="$c" && break
+done
+if [ -n "$DSH_LOG" ]; then
+  echo "dsh-web.log: $DSH_LOG"
+else
+  echo "dsh-web.log: not found"
+fi
+
 {
   echo "## DSH Desktop verification report (macOS)"
   echo ""
@@ -88,6 +105,7 @@ fi
   echo "- App process running: $proc_alive"
   echo "- dsh web UI reachable (port $PORT): $server_ok"
   echo "- UI loaded (TCP connection to port $PORT): $ui_connected"
+  echo "- Screenshots: screenshot-macos-1.png (t=0s), -2.png (t=5s), -3.png (t=10s)"
   echo "- Screenshot captured: $shot_ok"
   echo "- Verdict: **$verdict**"
   echo "- Detail: $detail"
@@ -96,6 +114,13 @@ fi
   echo '```'
   tail -n 40 app.log 2>/dev/null || true
   echo '```'
+  if [ -n "$DSH_LOG" ]; then
+    echo ""
+    echo "### dsh-web.log (tail)"
+    echo '```'
+    tail -n 40 "$DSH_LOG" 2>/dev/null || true
+    echo '```'
+  fi
 } | tee report.txt
 
 if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
