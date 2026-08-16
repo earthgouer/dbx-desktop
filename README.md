@@ -6,7 +6,7 @@ DSH Desktop 是 [DSH（DeepSeek Harness）](https://github.com/deepseek-ai/dsh) 
 
 ## 功能特性
 
-- **极速体验**：基于 Tauri 2 原生实现，安装包体积小，内存占用低，启动快。
+- **极速体验**：基于 Tauri 2 原生实现，安装包体积小(2M)，运行内存占用低（10M）。
 - **轻量入口**：本项目仅是 DSH 的启动器与入口，不包含 DSH 本体。请先自行安装 DSH 工具：
 
   ```bash

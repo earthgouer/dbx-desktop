@@ -61,8 +61,43 @@ fn dsh_in_dir(dir: &std::path::Path) -> Option<PathBuf> {
     None
 }
 
+/// Candidate directories where `dsh` may be installed on macOS/Linux.
+/// GUI-launched apps (Finder / `.desktop` / `open`) do not always inherit the
+/// login shell's PATH, so we scan a set of common locations: npm/pnpm/bun
+/// global bins, cargo, node version managers (nvm/volta/asdf/fnm/mise), and
+/// the system bin dirs.
+#[cfg(not(windows))]
+fn common_bin_dirs() -> Vec<PathBuf> {
+    let mut dirs = vec![
+        PathBuf::from("/usr/local/bin"),
+        PathBuf::from("/opt/homebrew/bin"),
+        PathBuf::from("/usr/bin"),
+    ];
+    if let Ok(home) = std::env::var("HOME") {
+        let home = PathBuf::from(home);
+        dirs.extend([
+            home.join(".npm-global/bin"),
+            home.join(".local/bin"),
+            home.join(".cargo/bin"),
+            home.join(".bun/bin"),
+            home.join(".volta/bin"),
+            home.join(".asdf/shims"),
+            home.join(".local/share/mise/shims"),
+            home.join(".local/share/fnm"),
+        ]);
+        // nvm keeps one `bin` dir per installed Node version, e.g.
+        // ~/.nvm/versions/node/v20.11.0/bin.
+        if let Ok(versions) = std::fs::read_dir(home.join(".nvm/versions/node")) {
+            for entry in versions.flatten() {
+                dirs.push(entry.path().join("bin"));
+            }
+        }
+    }
+    dirs
+}
+
 /// Resolve the `dsh` command so the app works on Windows/macOS/Linux no matter
-/// how dsh was installed. Searches PATH first, then a few common install
+/// how dsh was installed. Searches PATH first, then a set of common install
 /// locations (GUI-launched apps on macOS/Linux do not always inherit the
 /// login shell's PATH).
 fn find_dsh() -> Option<PathBuf> {
@@ -75,27 +110,9 @@ fn find_dsh() -> Option<PathBuf> {
     }
     #[cfg(not(windows))]
     {
-        if let Ok(home) = std::env::var("HOME") {
-            let home = PathBuf::from(home);
-            let mut candidates = vec![
-                home.join(".npm-global/bin"),
-                home.join(".local/bin"),
-                home.join(".bun/bin"),
-                PathBuf::from("/usr/local/bin"),
-                PathBuf::from("/opt/homebrew/bin"),
-                PathBuf::from("/usr/bin"),
-            ];
-            // nvm keeps one `bin` dir per installed Node version, e.g.
-            // ~/.nvm/versions/node/v20.11.0/bin.
-            if let Ok(versions) = std::fs::read_dir(home.join(".nvm/versions/node")) {
-                for entry in versions.flatten() {
-                    candidates.push(entry.path().join("bin"));
-                }
-            }
-            for dir in candidates {
-                if let Some(p) = dsh_in_dir(&dir) {
-                    return Some(p);
-                }
+        for dir in common_bin_dirs() {
+            if let Some(p) = dsh_in_dir(&dir) {
+                return Some(p);
             }
         }
     }
@@ -104,6 +121,32 @@ fn find_dsh() -> Option<PathBuf> {
 
 fn dsh_installed() -> bool {
     find_dsh().is_some()
+}
+
+/// True when a (lowercased) command-line token looks like the `dsh`
+/// executable: the bare `dsh`, a `dsh`/`dsh.exe` binary invoked through its
+/// absolute path (e.g. `/usr/local/bin/dsh`, `~/.cargo/bin/dsh`), or a node
+/// script under the `@deepseek-ai/dsh` package.
+fn is_dsh_token(token: &str) -> bool {
+    if token == "dsh" {
+        return true;
+    }
+    if let Some(name) = std::path::Path::new(token).file_name().and_then(|f| f.to_str()) {
+        let stem = name
+            .strip_suffix(".exe")
+            .or_else(|| name.strip_suffix(".cmd"))
+            .or_else(|| name.strip_suffix(".bat"))
+            .or_else(|| name.strip_suffix(".com"))
+            .unwrap_or(name);
+        if stem == "dsh" {
+            return true;
+        }
+    }
+    token.contains("@deepseek-ai/dsh")
+        || token.contains(r"\dsh\")
+        || token.contains("/dsh/")
+        || token.contains(r"\dsh/")
+        || token.contains(r"/dsh\")
 }
 
 /// Enumerate processes whose command line looks like a running `dsh web`
@@ -118,14 +161,7 @@ fn find_dsh_processes() -> Vec<u32> {
     let mut pids = Vec::new();
     for (pid, process) in sys.processes() {
         let cmd: Vec<String> = process.cmd().iter().map(|s| s.to_lowercase()).collect();
-        let is_dsh = cmd.iter().any(|t| {
-            t == "dsh"
-                || t.contains("@deepseek-ai/dsh")
-                || t.contains(r"\dsh\")
-                || t.contains("/dsh/")
-                || t.contains(r"\dsh/")
-                || t.contains(r"/dsh\")
-        });
+        let is_dsh = cmd.iter().any(|t| is_dsh_token(t));
         let has_web = cmd.iter().any(|t| t == "web");
         if is_dsh && has_web {
             pids.push(pid.as_u32());
@@ -391,17 +427,18 @@ fn spawn_dsh(app: &AppHandle) -> Result<u32, String> {
     // GUI-launched apps (Finder / `.desktop` / `open`) inherit a minimal PATH,
     // so dsh's shebang (`#!/usr/bin/env node`) can fail to locate node.
     // Prepend the dir holding dsh (npm/nvm/pnpm keep node next to dsh there)
-    // plus common node locations to the inherited PATH.
+    // plus every directory we search for dsh to the inherited PATH.
     #[cfg(unix)]
     {
-        let mut dirs: Vec<String> = vec![
-            "/opt/homebrew/bin".into(),
-            "/usr/local/bin".into(),
-            "/usr/bin".into(),
-        ];
+        let mut dirs: Vec<String> = Vec::new();
         if let Some(parent) = dsh_path.parent() {
-            dirs.insert(0, parent.to_string_lossy().into_owned());
+            dirs.push(parent.to_string_lossy().into_owned());
         }
+        dirs.extend(
+            common_bin_dirs()
+                .iter()
+                .map(|d| d.to_string_lossy().into_owned()),
+        );
         if let Ok(inherited) = std::env::var("PATH") {
             dirs.push(inherited);
         }
@@ -594,5 +631,19 @@ node    999   cc    10u  IPv4 0x3   0t0     TCP 127.0.0.1:8443 (LISTEN)
 ";
         assert_eq!(ports_from_lsof(sample, 38316), vec![3080, 3088]);
         assert_eq!(ports_from_lsof(sample, 999), vec![8443]);
+    }
+
+    #[test]
+    fn dsh_token_matches() {
+        assert!(is_dsh_token("dsh"));
+        assert!(is_dsh_token("/usr/local/bin/dsh"));
+        assert!(is_dsh_token("/home/me/.cargo/bin/dsh"));
+        assert!(is_dsh_token("dsh.exe"));
+        assert!(is_dsh_token("C:\\tools\\dsh\\dsh.exe"));
+        assert!(is_dsh_token("/usr/lib/node_modules/@deepseek-ai/dsh/lib/bin.js"));
+        assert!(!is_dsh_token("node"));
+        assert!(!is_dsh_token("/usr/bin/bash"));
+        assert!(!is_dsh_token("--webview-exe-name=msedgewebview2.exe"));
+        assert!(!is_dsh_token("/opt/dashboard/bin/web"));
     }
 }

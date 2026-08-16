@@ -7,7 +7,7 @@ DSH Desktop is a desktop launcher for [DSH (DeepSeek Harness)](https://github.co
 
 ## Features
 
-- **Lightning fast**: Built natively on Tauri 2 — small installer, low memory footprint, quick startup.
+- **Lightning fast**: Built natively on Tauri 2 — small installer, low memory footprint.
 - **Lightweight entry**: This project is only a launcher/entry point for DSH and does not bundle DSH itself. Install the DSH tool first:
 
   ```bash
