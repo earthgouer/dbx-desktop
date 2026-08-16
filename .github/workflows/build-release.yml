@@ -67,11 +67,39 @@ jobs:
 
       - name: Build (macOS x86_64)
         if: runner.os == 'macOS'
-        run: npm run tauri build -- --target x86_64-apple-darwin --bundles dmg
+        run: |
+          set -e
+          retry_build() {
+            local attempts=0
+            until "$@"; do
+              attempts=$((attempts + 1))
+              if [ "$attempts" -ge 3 ]; then
+                echo "::error::macOS x86_64 build failed after 3 attempts"
+                return 1
+              fi
+              echo "::warning::macOS x86_64 build failed (attempt $attempts), retrying in 30s"
+              sleep 30
+            done
+          }
+          retry_build npm run tauri build -- --target x86_64-apple-darwin --bundles dmg
 
       - name: Build (macOS aarch64)
         if: runner.os == 'macOS'
-        run: npm run tauri build -- --target aarch64-apple-darwin --bundles dmg
+        run: |
+          set -e
+          retry_build() {
+            local attempts=0
+            until "$@"; do
+              attempts=$((attempts + 1))
+              if [ "$attempts" -ge 3 ]; then
+                echo "::error::macOS aarch64 build failed after 3 attempts"
+                return 1
+              fi
+              echo "::warning::macOS aarch64 build failed (attempt $attempts), retrying in 30s"
+              sleep 30
+            done
+          }
+          retry_build npm run tauri build -- --target aarch64-apple-darwin --bundles dmg
 
       - name: Upload bundles
         uses: actions/upload-artifact@v4
