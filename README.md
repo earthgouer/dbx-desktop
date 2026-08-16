@@ -19,6 +19,10 @@ DSH Desktop 是 [DSH（DeepSeek Harness）](https://github.com/deepseek-ai/dsh) 
 - **跨平台**：支持 Windows、macOS、Linux，并在多平台下都能正确找到 `dsh` 命令。
 - **干净退出**：应用退出时只会结束由它自己启动的 dsh 进程，不会误杀用户自己启动的实例。
 
+## 下载
+
+前往 [GitHub Releases](https://github.com/smanx/dsh-desktop/releases) 下载对应平台的安装包。
+
 ## 界面预览
 
 <p align="center"><img src="doc/image.jpg" alt="DSH Desktop 主界面" width="600"></p>

@@ -20,6 +20,10 @@ DSH Desktop is a desktop launcher for [DSH (DeepSeek Harness)](https://github.co
 - **Cross-platform**: Supports Windows, macOS and Linux, correctly locating the `dsh` command on every platform.
 - **Clean shutdown**: On exit, only the dsh process started by this app is terminated — user-started instances are never killed.
 
+## Download
+
+Download the installer for your platform from the [GitHub Releases](https://github.com/smanx/dsh-desktop/releases) page.
+
 ## Screenshots
 
 <p align="center"><img src="doc/image-en.jpg" alt="DSH Desktop main window" width="600"></p>
