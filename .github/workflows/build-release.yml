@@ -48,11 +48,11 @@ jobs:
 
       - name: Build (Windows)
         if: runner.os == 'Windows'
-        run: npm run tauri build
+        run: npm run tauri build -- --bundles nsis
 
       - name: Build (Linux)
         if: runner.os == 'Linux'
-        run: npm run tauri build
+        run: npm run tauri build -- --bundles deb --bundles appimage
 
       - name: Build (macOS x86_64)
         if: runner.os == 'macOS'
