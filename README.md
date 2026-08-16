@@ -1,4 +1,4 @@
-# DSH Desktop 极速版
+# DSH Desktop 轻量版
 
 [English](README.en.md) | **中文**
 

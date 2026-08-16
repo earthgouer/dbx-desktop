@@ -540,6 +540,11 @@ fn start_dsh(app: AppHandle, state: State<'_, DshState>) -> Result<DshStatus, St
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let app = tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(win) = app.get_webview_window("main") {
+                let _ = win.set_focus();
+            }
+        }))
         .manage(DshState {
             spawned: Mutex::new(None),
         })
