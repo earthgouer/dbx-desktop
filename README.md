@@ -21,7 +21,7 @@ DSH Desktop 是 [DSH（DeepSeek Harness）](https://github.com/deepseek-ai/dsh) 
 
 ## 界面预览
 
-![DSH Desktop 主界面](doc/image.png)
+<p align="center"><img src="doc/image.jpg" alt="DSH Desktop 主界面" width="600"></p>
 
 ## 环境要求
 

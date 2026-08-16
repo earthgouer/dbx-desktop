@@ -22,7 +22,7 @@ DSH Desktop is a desktop launcher for [DSH (DeepSeek Harness)](https://github.co
 
 ## Screenshots
 
-![DSH Desktop main window](doc/image-en.png)
+<p align="center"><img src="doc/image-en.jpg" alt="DSH Desktop main window" width="600"></p>
 
 ## Requirements
 
