@@ -77,7 +77,7 @@ fn find_dsh() -> Option<PathBuf> {
     {
         if let Ok(home) = std::env::var("HOME") {
             let home = PathBuf::from(home);
-            let candidates = [
+            let mut candidates = vec![
                 home.join(".npm-global/bin"),
                 home.join(".local/bin"),
                 home.join(".bun/bin"),
@@ -85,6 +85,13 @@ fn find_dsh() -> Option<PathBuf> {
                 PathBuf::from("/opt/homebrew/bin"),
                 PathBuf::from("/usr/bin"),
             ];
+            // nvm keeps one `bin` dir per installed Node version, e.g.
+            // ~/.nvm/versions/node/v20.11.0/bin.
+            if let Ok(versions) = std::fs::read_dir(home.join(".nvm/versions/node")) {
+                for entry in versions.flatten() {
+                    candidates.push(entry.path().join("bin"));
+                }
+            }
             for dir in candidates {
                 if let Some(p) = dsh_in_dir(&dir) {
                     return Some(p);
@@ -140,6 +147,7 @@ fn parse_hex_port(addr: &str) -> Option<u16> {
 
 /// Parse `netstat -ano` output (Windows) and return the listening TCP ports
 /// owned by `pid`.
+#[allow(dead_code)]
 fn ports_from_netstat(out: &str, pid: u32) -> Vec<u16> {
     let mut ports = Vec::new();
     for line in out.lines() {
@@ -275,10 +283,38 @@ fn fetch_head(port: u16) -> Option<(u16, Vec<u8>)> {
     stream.set_read_timeout(Some(Duration::from_millis(800))).ok()?;
     let req = format!("GET / HTTP/1.0\r\nHost: {DSH_HOST}:{port}\r\n\r\n");
     stream.write_all(req.as_bytes()).ok()?;
-    let mut buf = vec![0u8; 16384];
-    let n = stream.read(&mut buf).ok()?;
-    let code = parse_status(&String::from_utf8_lossy(&buf[..n]))?;
-    Some((code, buf[..n].to_vec()))
+    // Read until the headers plus a chunk of the body arrive, so a slow or
+    // split first write can't hide the "DeepSeek/Harness" markers.
+    let mut buf = Vec::with_capacity(16384);
+    let mut chunk = [0u8; 4096];
+    loop {
+        match stream.read(&mut chunk) {
+            Ok(0) => break,
+            Ok(n) => {
+                buf.extend_from_slice(&chunk[..n]);
+                if buf.len() >= 16384 {
+                    break;
+                }
+                if let Some(pos) = buf.windows(4).position(|w| w == b"\r\n\r\n") {
+                    if buf.len() - pos - 4 >= 1024 {
+                        break;
+                    }
+                }
+            }
+            Err(e)
+                if e.kind() == std::io::ErrorKind::WouldBlock
+                    || e.kind() == std::io::ErrorKind::TimedOut =>
+            {
+                break;
+            }
+            Err(_) => break,
+        }
+    }
+    if buf.is_empty() {
+        return None;
+    }
+    let code = parse_status(&String::from_utf8_lossy(&buf))?;
+    Some((code, buf))
 }
 
 /// True when `port` answers with an HTTP 2xx/3xx page that looks like the dsh
@@ -351,6 +387,26 @@ fn spawn_dsh(app: &AppHandle) -> Result<u32, String> {
                 .map_err(|e| format!("cannot clone log handle: {e}"))?,
         ))
         .stderr(Stdio::from(log_file));
+
+    // GUI-launched apps (Finder / `.desktop` / `open`) inherit a minimal PATH,
+    // so dsh's shebang (`#!/usr/bin/env node`) can fail to locate node.
+    // Prepend the dir holding dsh (npm/nvm/pnpm keep node next to dsh there)
+    // plus common node locations to the inherited PATH.
+    #[cfg(unix)]
+    {
+        let mut dirs: Vec<String> = vec![
+            "/opt/homebrew/bin".into(),
+            "/usr/local/bin".into(),
+            "/usr/bin".into(),
+        ];
+        if let Some(parent) = dsh_path.parent() {
+            dirs.insert(0, parent.to_string_lossy().into_owned());
+        }
+        if let Ok(inherited) = std::env::var("PATH") {
+            dirs.push(inherited);
+        }
+        cmd.env("PATH", dirs.join(":"));
+    }
 
     #[cfg(windows)]
     cmd.creation_flags(CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP);
