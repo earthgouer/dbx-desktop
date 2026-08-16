@@ -1,7 +1,10 @@
-name: Build & Draft Release
+name: Build & Release
 
 on:
   workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
 
 concurrency:
   group: build-release
@@ -81,8 +84,8 @@ jobs:
             src-tauri/target/aarch64-pc-windows-msvc/release/bundle/*
           if-no-files-found: error
 
-  draft:
-    name: Create draft release
+  release:
+    name: Create release
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -96,19 +99,27 @@ jobs:
           path: bundles
           merge-multiple: true
 
-      - name: Create draft release
+      - name: Create release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUN_NUMBER: ${{ github.run_number }}
         run: |
           set -euo pipefail
           VERSION="$(node -p "require('./src-tauri/tauri.conf.json').version")"
-          TAG="v${VERSION}-build.${RUN_NUMBER}"
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            TAG="${GITHUB_REF_NAME}"
+            DRAFT_FLAG=""
+            TITLE="DSH Desktop ${VERSION}"
+          else
+            TAG="v${VERSION}-build.${RUN_NUMBER}"
+            DRAFT_FLAG="--draft"
+            TITLE="DSH Desktop v${VERSION} (build #${RUN_NUMBER})"
+          fi
           FILES="$(find bundles -type f \( -name '*.exe' -o -name '*.msi' -o -name '*.dmg' -o -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' -o -name '*.pkg' \))"
           if [ -z "$FILES" ]; then
             echo "::error::no installer files found in bundles"
             exit 1
           fi
-          gh release create "$TAG" --draft --generate-notes \
-            --title "DSH Desktop v${VERSION} (build #${RUN_NUMBER})" \
+          gh release create "$TAG" $DRAFT_FLAG --generate-notes \
+            --title "$TITLE" \
             $FILES
