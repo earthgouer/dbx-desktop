@@ -1,5 +1,7 @@
 # DSH Desktop 极速版
 
+[English](README.en.md) | **中文**
+
 DSH Desktop 是 [DSH（DeepSeek Harness）](https://github.com/deepseek-ai/dsh) 的桌面启动器。它由 Tauri 2 驱动，会自动检测、启动本机的 `dsh web` 服务，并在应用窗口内打开其 Web 界面。
 
 ## 功能特性
@@ -16,6 +18,10 @@ DSH Desktop 是 [DSH（DeepSeek Harness）](https://github.com/deepseek-ai/dsh) 
 - **界面跳转**：服务就绪后，在应用窗口内直接打开 dsh 的 Web 界面。
 - **跨平台**：支持 Windows、macOS、Linux，并在多平台下都能正确找到 `dsh` 命令。
 - **干净退出**：应用退出时只会结束由它自己启动的 dsh 进程，不会误杀用户自己启动的实例。
+
+## 界面预览
+
+![DSH Desktop 主界面](doc/image.png)
 
 ## 环境要求
 
@@ -68,6 +74,7 @@ dsh-desktop
 │   │   └── lib.rs          # 核心逻辑：检测、启动、端口探测
 │   ├── capabilities/
 │   └── tauri.conf.json     # 应用配置
+├── doc/                    # 文档相关资源（界面截图等）
 └── .github/workflows/      # CI 构建与发布
 ```
 
@@ -77,4 +84,28 @@ dsh-desktop
 
 ## 许可
 
-本项目为私有项目，请遵循仓库所属组织的相关约定。
+本项目基于 [MIT License](LICENSE) 开源。
+
+```
+MIT License
+
+Copyright (c) 2026 dsh-desktop contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
