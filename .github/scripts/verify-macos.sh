@@ -15,12 +15,35 @@ if [ ! -x "$BIN" ]; then
   exit 1
 fi
 
-echo "Launching installed app: $BIN"
-# Launch the binary directly so it inherits the runner's PATH (the dsh CLI and
-# node are installed under the hosted tool cache).
-"$BIN" >app.log 2>&1 &
-APP_PID=$!
-echo "App launched, PID $APP_PID"
+# Launch via LaunchServices (`open`), the proper way to start a .app bundle.
+# Launching the bundle's raw binary directly makes macOS kill that instance when
+# `open` (used to bring the window to the front for screenshots) takes it over.
+echo "Launching installed app: $APP_PATH"
+
+# `open`-launched apps do not inherit the runner's PATH, so dsh/node (installed
+# under the hosted tool cache) would be invisible to the app's find_dsh and to
+# the dsh it spawns. Symlink them into /usr/local/bin, which the app searches.
+if command -v dsh >/dev/null 2>&1; then
+  sudo ln -sf "$(command -v dsh)" /usr/local/bin/dsh || true
+fi
+if command -v node >/dev/null 2>&1; then
+  sudo ln -sf "$(command -v node)" /usr/local/bin/node || true
+fi
+
+open "$APP_PATH"
+
+# find the app process (managed by LaunchServices; track it by name)
+APP_PID=""
+for i in $(seq 1 20); do
+  APP_PID="$(pgrep -f "$APP_PATH/Contents/MacOS" | head -1 || true)"
+  [ -n "$APP_PID" ] && break
+  sleep 1
+done
+echo "App PID: ${APP_PID:-unknown}"
+
+app_alive() {
+  [ -n "$(pgrep -f "$APP_PATH/Contents/MacOS" || true)" ]
+}
 
 # (e) screenshot timeline: at launch (t=0), then at 5s and 10s
 take_screenshot() {
@@ -45,8 +68,8 @@ take_screenshot screenshot-macos-3.png && shot_ok=1
 server_ok=0
 end=$((SECONDS + TIMEOUT))
 while [ "$SECONDS" -lt "$end" ]; do
-  if ! kill -0 "$APP_PID" 2>/dev/null; then
-    echo "App process exited early (see app.log)."
+  if ! app_alive; then
+    echo "App process exited early (see dsh-web.log)."
     break
   fi
   body="$(curl -s --max-time 5 "http://127.0.0.1:$PORT/" || true)"
@@ -62,7 +85,7 @@ while [ "$SECONDS" -lt "$end" ]; do
 done
 
 proc_alive=0
-if kill -0 "$APP_PID" 2>/dev/null; then
+if app_alive; then
   proc_alive=1
 fi
 
@@ -109,11 +132,6 @@ fi
   echo "- Screenshot captured: $shot_ok"
   echo "- Verdict: **$verdict**"
   echo "- Detail: $detail"
-  echo ""
-  echo "### App log (tail)"
-  echo '```'
-  tail -n 40 app.log 2>/dev/null || true
-  echo '```'
   if [ -n "$DSH_LOG" ]; then
     echo ""
     echo "### dsh-web.log (tail)"
