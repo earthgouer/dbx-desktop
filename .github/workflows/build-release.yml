@@ -24,6 +24,23 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve version from tag
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            TAG="${GITHUB_REF_NAME}"
+          else
+            TAG="$(git describe --tags --abbrev=0)"
+          fi
+          VERSION="${TAG#v}"
+          echo "TAG=${TAG}"
+          echo "VERSION=${VERSION}"
+          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
+          printf '{"version":"%s"}\n' "${VERSION}" > release-version.json
+          cat release-version.json
 
       - uses: actions/setup-node@v4
         with:
@@ -55,15 +72,15 @@ jobs:
 
       - name: Build (Windows)
         if: runner.os == 'Windows'
-        run: npm run tauri build -- --bundles nsis
+        run: npm run tauri build -- --config release-version.json --bundles nsis
 
       - name: Build (Windows ARM)
         if: runner.os == 'Windows'
-        run: npm run tauri build -- --target aarch64-pc-windows-msvc --bundles nsis
+        run: npm run tauri build -- --config release-version.json --target aarch64-pc-windows-msvc --bundles nsis
 
       - name: Build (Linux)
         if: runner.os == 'Linux'
-        run: npm run tauri build -- --bundles deb --bundles appimage
+        run: npm run tauri build -- --config release-version.json --bundles deb --bundles appimage
 
       - name: Build (macOS x86_64)
         if: runner.os == 'macOS'
@@ -81,7 +98,7 @@ jobs:
               sleep 30
             done
           }
-          retry_build npm run tauri build -- --target x86_64-apple-darwin --bundles dmg
+          retry_build npm run tauri build -- --config release-version.json --target x86_64-apple-darwin --bundles dmg
 
       - name: Build (macOS aarch64)
         if: runner.os == 'macOS'
@@ -99,7 +116,7 @@ jobs:
               sleep 30
             done
           }
-          retry_build npm run tauri build -- --target aarch64-apple-darwin --bundles dmg
+          retry_build npm run tauri build -- --config release-version.json --target aarch64-apple-darwin --bundles dmg
 
       - name: Upload bundles
         uses: actions/upload-artifact@v4
