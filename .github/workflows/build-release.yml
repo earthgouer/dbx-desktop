@@ -120,6 +120,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Download bundles
         uses: actions/download-artifact@v4
@@ -130,30 +132,30 @@ jobs:
       - name: Create release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RUN_NUMBER: ${{ github.run_number }}
         run: |
           set -euo pipefail
-          VERSION="$(node -p "require('./src-tauri/tauri.conf.json').version")"
           if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
             TAG="${GITHUB_REF_NAME}"
-            DRAFT_FLAG=""
-            TITLE="DSH Desktop ${GITHUB_REF_NAME}"
           else
-            TAG="v${VERSION}-build.${RUN_NUMBER}"
-            DRAFT_FLAG="--draft"
-            TITLE="DSH Desktop Draft"
+            TAG="$(git describe --tags --abbrev=0)" || {
+              echo "::error::no tags found in repository, cannot determine release tag"
+              exit 1
+            }
           fi
+          TITLE="DSH Desktop ${TAG}"
           echo "GITHUB_REF_TYPE=${GITHUB_REF_TYPE} GITHUB_REF_NAME=${GITHUB_REF_NAME} TAG=${TAG}"
           FILES="$(find bundles -type f \( -name '*.exe' -o -name '*.msi' -o -name '*.dmg' -o -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' -o -name '*.pkg' \))"
           if [ -z "$FILES" ]; then
             echo "::error::no installer files found in bundles"
             exit 1
           fi
-          gh release create "$TAG" $DRAFT_FLAG --generate-notes --title "$TITLE" $FILES
+          if gh release view "$TAG" --json tagName --jq .tagName >/dev/null 2>&1; then
+            echo "::warning::release $TAG already exists; updating title and assets"
+            gh release edit "$TAG" --title "$TITLE"
+            gh release upload "$TAG" $FILES --clobber
+          else
+            gh release create "$TAG" --generate-notes --title "$TITLE" $FILES
+          fi
 
           INFO="$(gh release view "$TAG" --json name,tagName,isDraft,url)"
           echo "$INFO" | jq .
-          if [[ "$(jq -r .isDraft <<<"$INFO")" == "true" && -z "$DRAFT_FLAG" ]]; then
-            echo "::warning::release $TAG was created as a draft, publishing it"
-            gh release edit "$TAG" --draft=false
-          fi
