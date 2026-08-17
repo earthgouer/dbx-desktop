@@ -2,7 +2,7 @@
 
 **English** | [中文](README.md)
 
-DSH Desktop is a desktop launcher for [DSH (DeepSeek Harness)](https://github.com/deepseek-ai/dsh). Powered by Tauri 2, it automatically detects and starts the local `dsh web` service and opens its web interface inside the app window.
+DSH Desktop is a desktop launcher for [DSH (DeepSeek Harness)](https://github.com/deepseek-ai/deepseek-harness). Powered by Tauri 2, it automatically detects and starts the local `dsh web` service and opens its web interface inside the app window.
 
 
 ## Features

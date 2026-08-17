@@ -2,7 +2,7 @@
 
 [English](README.en.md) | **中文**
 
-DSH Desktop 是 [DSH（DeepSeek Harness）](https://github.com/deepseek-ai/dsh) 的桌面启动器。它由 Tauri 2 驱动，会自动检测、启动本机的 `dsh web` 服务，并在应用窗口内打开其 Web 界面。
+DSH Desktop 是 [DSH（DeepSeek Harness）](https://github.com/deepseek-ai/deepseek-harness) 的桌面启动器。它由 Tauri 2 驱动，会自动检测、启动本机的 `dsh web` 服务，并在应用窗口内打开其 Web 界面。
 
 ## 功能特性
 

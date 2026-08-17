@@ -137,11 +137,11 @@ jobs:
           if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
             TAG="${GITHUB_REF_NAME}"
             DRAFT_FLAG=""
-            TITLE="DSH Desktop ${VERSION}"
+            TITLE="DSH Desktop ${GITHUB_REF_NAME}"
           else
             TAG="v${VERSION}-build.${RUN_NUMBER}"
             DRAFT_FLAG="--draft"
-            TITLE="DSH Desktop v${VERSION} (build #${RUN_NUMBER})"
+            TITLE="DSH Desktop Draft"
           fi
           FILES="$(find bundles -type f \( -name '*.exe' -o -name '*.msi' -o -name '*.dmg' -o -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' -o -name '*.pkg' \))"
           if [ -z "$FILES" ]; then
