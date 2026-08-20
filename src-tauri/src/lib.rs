@@ -382,6 +382,33 @@ fn discover_dsh() -> Option<u16> {
     None
 }
 
+/// True when the installed dsh advertises `web --no-open` in its help. The
+/// newer launcher opens the default browser on start unless `--no-open` is
+/// given, but a version that doesn't know the flag would abort with "unknown
+/// option", so the flag is only passed when the installed dsh supports it.
+fn dsh_supports_no_open(dsh_path: &std::path::Path) -> bool {
+    let (program, args): (String, Vec<String>) = if cfg!(windows) {
+        (
+            "cmd".into(),
+            vec!["/C".into(), "dsh".into(), "web".into(), "--help".into()],
+        )
+    } else {
+        (
+            dsh_path.to_string_lossy().into_owned(),
+            vec!["web".into(), "--help".into()],
+        )
+    };
+    let Ok(out) = Command::new(&program).args(&args).output() else {
+        return false;
+    };
+    if !out.status.success() {
+        return false;
+    }
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    stdout.contains("--no-open") || stderr.contains("--no-open")
+}
+
 fn spawn_dsh(app: &AppHandle) -> Result<u32, String> {
     let dsh_path = find_dsh().ok_or_else(|| INSTALL_HINT.to_string())?;
 
@@ -395,23 +422,26 @@ fn spawn_dsh(app: &AppHandle) -> Result<u32, String> {
         .open(&log_path)
         .map_err(|e| format!("cannot open log {}: {e}", log_path.display()))?;
 
+    let no_open = dsh_supports_no_open(&dsh_path);
+
     // Windows needs `cmd /C` to run the npm shim (dsh.cmd); other platforms
     // can exec the resolved `dsh` directly (binary or shebang script).
     let (program, args): (String, Vec<String>) = if cfg!(windows) {
-        (
-            "cmd".into(),
-            vec![
-                "/C".into(),
-                "dsh".into(),
-                "web".into(),
-                "--port".into(),
-                DSH_PORT.to_string(),
-            ],
-        )
+        let mut args = vec!["/C".into(), "dsh".into(), "web".into()];
+        if no_open {
+            args.push("--no-open".into());
+        }
+        args.extend(["--port".into(), DSH_PORT.to_string()]);
+        ("cmd".into(), args)
     } else {
+        let mut args = vec!["web".into()];
+        if no_open {
+            args.push("--no-open".into());
+        }
+        args.extend(["--port".into(), DSH_PORT.to_string()]);
         (
             dsh_path.to_string_lossy().into_owned(),
-            vec!["web".into(), "--port".into(), DSH_PORT.to_string()],
+            args,
         )
     };
 
