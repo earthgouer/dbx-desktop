@@ -243,7 +243,7 @@ jobs:
           if-no-files-found: error
 
   build-ios:
-    name: Build (iOS simulator)
+    name: Build (iOS)
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -270,7 +270,7 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-apple-ios,aarch64-apple-ios-sim
+          targets: aarch64-apple-ios
 
       - uses: swatinem/rust-cache@v2
         with:
@@ -290,24 +290,28 @@ jobs:
       - name: Regenerate app icons from app-icon.png
         run: npm run tauri icon app-icon.png
 
-      - name: Build simulator app
-        run: npm run tauri ios build -- --config release-version.json --target aarch64-sim
+      # --no-sign: archive without certificates and let the CLI wrap the .app
+      # into an unsigned device IPA (installable via sideloading tools or by
+      # signing with your own certificate).
+      - name: Build unsigned device IPA
+        run: npm run tauri ios build -- --config release-version.json --target aarch64 --no-sign
 
-      - name: Stage simulator zip
+      - name: Stage IPA
         run: |
-          APP_PATH="$(find src-tauri/gen/apple/build -type d -name '*.app' | head -n 1)"
-          if [ -z "$APP_PATH" ]; then
-            echo "::error::built .app not found under src-tauri/gen/apple/build"
+          mkdir -p bundle-mobile
+          IPA="$(find src-tauri/gen/apple -type f -name '*.ipa' | head -n 1)"
+          if [ -z "$IPA" ]; then
+            echo "::error::built .ipa not found under src-tauri/gen/apple"
+            find src-tauri/gen/apple/build -type f 2>/dev/null | head -n 50
             exit 1
           fi
-          mkdir -p bundle-mobile
-          cd "$(dirname "$APP_PATH")"
-          zip -qry "$GITHUB_WORKSPACE/bundle-mobile/dsh-desktop-${VERSION}-ios-simulator.zip" "$(basename "$APP_PATH")"
+          echo "found IPA: $IPA"
+          cp "$IPA" "bundle-mobile/dsh-desktop-${VERSION}-ios-unsigned.ipa"
 
-      - name: Upload simulator zip
+      - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
-          name: bundle-ios-simulator
+          name: bundle-ios
           path: bundle-mobile/*
           if-no-files-found: error
 
@@ -333,37 +337,48 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
-            TAG="${GITHUB_REF_NAME}"
-          else
-            TAG="$(git describe --tags --abbrev=0)" || {
-              echo "::error::no tags found in repository, cannot determine release tag"
-              exit 1
-            }
-          fi
-          TITLE="DSH Desktop ${TAG}"
-          echo "GITHUB_REF_TYPE=${GITHUB_REF_TYPE} GITHUB_REF_NAME=${GITHUB_REF_NAME} TAG=${TAG}"
-          # Manual runs produce a draft release for review; tag pushes publish.
-          DRAFT_ARGS=()
-          if [[ "$GITHUB_REF_TYPE" != "tag" ]]; then
-            DRAFT_ARGS+=(--draft)
-          fi
-          FILES="$(find bundles -type f \( -name '*.exe' -o -name '*.msi' -o -name '*.dmg' -o -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' -o -name '*.pkg' -o -name '*.apk' \))"
+          FILES="$(find bundles -type f \( -name '*.exe' -o -name '*.msi' -o -name '*.dmg' -o -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' -o -name '*.pkg' -o -name '*.apk' -o -name '*.ipa' \))"
           if [ -z "$FILES" ]; then
             echo "::error::no installer files found in bundles"
             exit 1
           fi
-          if gh release view "$TAG" --json tagName,isDraft --jq '.tagName' >/dev/null 2>&1; then
-            echo "::warning::release $TAG already exists; updating title and assets"
-            if [[ ${#DRAFT_ARGS[@]} -gt 0 ]]; then
-              # keep manual-run artifacts as draft even when the release predates them
-              gh release edit "$TAG" --draft --title "$TITLE"
-            else
+
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            # Official release bound to the pushed git tag.
+            TAG="${GITHUB_REF_NAME}"
+            TITLE="DSH Desktop ${TAG}"
+            echo "publishing official release for ${TAG}"
+            if gh release view "$TAG" --json tagName --jq .tagName >/dev/null 2>&1; then
+              echo "::warning::release $TAG already exists; updating title and assets"
               gh release edit "$TAG" --title "$TITLE"
+              gh release upload "$TAG" $FILES --clobber
+            else
+              gh release create "$TAG" --generate-notes --title "$TITLE" $FILES
             fi
-            gh release upload "$TAG" $FILES --clobber
           else
-            gh release create "$TAG" "${DRAFT_ARGS[@]}" --generate-notes --title "$TITLE" $FILES
+            # Manual run: a standalone rolling draft, fully detached from every
+            # git tag and official release. The pseudo ref below is only ever
+            # materialized if someone explicitly publishes this draft, so
+            # existing tags/releases are never touched or overwritten.
+            LATEST_TAG="$(git describe --tags --abbrev=0 2>/dev/null || true)"
+            TAG="manual-build"
+            TITLE="DSH Desktop ${LATEST_TAG:-untagged} Manual Build #${GITHUB_RUN_NUMBER}"
+            echo "updating standalone draft ${TAG}"
+            if gh release view "$TAG" --json isDraft --jq .isDraft >/dev/null 2>&1; then
+              IS_DRAFT="$(gh release view "$TAG" --json isDraft --jq .isDraft)"
+              if [[ "$IS_DRAFT" != "true" ]]; then
+                echo "::error::release '${TAG}' exists and is published; refusing to replace it"
+                exit 1
+              fi
+              echo "::warning::replacing previous manual-build draft"
+              gh release delete "$TAG" --yes
+            fi
+            gh release create "$TAG" \
+              --draft \
+              --target "$GITHUB_SHA" \
+              --title "$TITLE" \
+              --notes "Standalone manual workflow_dispatch build. Independent from all release tags." \
+              $FILES
           fi
 
           INFO="$(gh release view "$TAG" --json name,tagName,isDraft,url)"

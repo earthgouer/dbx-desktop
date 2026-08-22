@@ -56,7 +56,10 @@ npm run tauri build
 
 ### 自动发布（GitHub Actions）
 
-仓库内置了 [build-release.yml](.github/workflows/build-release.yml) 工作流，可手动触发，会同时构建 Windows、macOS、Linux 三个平台的安装包，并生成草稿版本（draft release）。
+仓库内置了 [build-release.yml](.github/workflows/build-release.yml) 工作流：
+
+- **推送 `v*` 标签**：构建 Windows、macOS、Linux 安装包与 Android APK，并正式发布 Release。
+- **手动触发**：构建同样的产物，但只生成一个**独立的草稿**（`manual-build`，标题含运行编号），与所有现有 tag 和正式发布完全隔离——不会绑定、覆盖或改动任何已发布的版本。检查无误后可自行处理该草稿。
 
 ### 手机端打包（GitHub Actions）
 
@@ -80,7 +83,7 @@ npm run tauri build
   ```
 
   macOS/Linux 用 `base64 -i dsh-release.keystore`。**务必备份 keystore 文件**：丢失后无法再用同一签名发布更新。
-- **iOS**：`build-ios` job 构建 iOS 模拟器包（`.app` 压缩为 zip），仅上传为 workflow artifact。真机安装需要苹果开发者证书签名，暂未包含；如需分发可后续在 CI 中接入签名证书（Secrets）。
+- **iOS**：`build-ios` job 构建 arm64 真机 **IPA**（以 `--no-sign` 归档打包，未签名；可用 Sideloadly、AltStore 等工具自签后安装到设备，或接入苹果开发者证书 Secrets 后改为签名导出），并作为 `*.ipa` 附件随 APK 一起上传到 GitHub Release / 草稿。
 - **图标**：两个 job 在 init 后都会执行 `tauri icon app-icon.png`，Android 启动器图标、iOS AppIcon 与桌面端图标全部由同一张 `app-icon.png` 生成，保持一致。
 
 手机端使用说明：手机与电脑连接同一网络，在电脑上运行 `dsh web --port 3080`，然后在 App 中输入电脑的局域网 IP（如 `192.168.1.100`）和端口即可打开 dsh 界面。为支持明文 HTTP 连接，移动端构建已启用 Android 明文流量（含 release 构建，由 [.github/scripts/patch-mobile.sh](.github/scripts/patch-mobile.sh) 在 CI 中自动打补丁）与 iOS ATS 例外。

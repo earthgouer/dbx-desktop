@@ -57,7 +57,10 @@ Package targets for each platform are configured in `src-tauri/tauri.conf.json`;
 
 ### Automated Releases (GitHub Actions)
 
-The repository ships a [build-release.yml](.github/workflows/build-release.yml) workflow that can be triggered manually. It builds installers for Windows, macOS and Linux in one go and creates a draft release.
+The repository ships a [build-release.yml](.github/workflows/build-release.yml) workflow:
+
+- **Push a `v*` tag**: builds the Windows/macOS/Linux installers and the Android APK, then publishes an official Release.
+- **Manual dispatch**: builds the same artifacts but produces only a **standalone draft** (`manual-build`, titled with the run number). It is fully isolated from every existing tag and official release — nothing gets bound to, overwritten or modified. Review it and handle the draft as you see fit.
 
 ### Mobile Builds (GitHub Actions)
 
@@ -81,7 +84,7 @@ The same workflow also produces mobile packages in CI — no local Android/iOS t
   ```
 
   On macOS/Linux use `base64 -i dsh-release.keystore`. **Always back up the keystore file**: if it is lost, updates can no longer be signed with the same identity.
-- **iOS**: the `build-ios` job builds an iOS Simulator app (zipped) and uploads it as a workflow artifact. Installing on real devices requires Apple developer signing, which is not included yet; wire signing certificates (Secrets) into CI when needed.
+- **iOS**: the `build-ios` job builds an arm64 device **IPA** (archived with `--no-sign`, so it is unsigned — install on devices via sideloading tools like Sideloadly/AltStore, or wire Apple developer certificate secrets to switch to signed export). It is attached to the GitHub Release/draft as `*.ipa` alongside the APK.
 - **Icons**: both jobs run `tauri icon app-icon.png` after project init, so the Android launcher icons, the iOS AppIcon and the desktop icons are all generated from the same source image for a consistent look.
 
 Mobile usage: connect the phone to the same network as the computer, run `dsh web --port 3080` there, then enter the computer's LAN IP (e.g. `192.168.1.100`) and port in the app. To allow plain HTTP, mobile builds enable Android cleartext traffic (including release builds, patched automatically by [.github/scripts/patch-mobile.sh](.github/scripts/patch-mobile.sh)) and an iOS ATS exception.
