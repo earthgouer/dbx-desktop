@@ -343,17 +343,27 @@ jobs:
           fi
           TITLE="DSH Desktop ${TAG}"
           echo "GITHUB_REF_TYPE=${GITHUB_REF_TYPE} GITHUB_REF_NAME=${GITHUB_REF_NAME} TAG=${TAG}"
+          # Manual runs produce a draft release for review; tag pushes publish.
+          DRAFT_ARGS=()
+          if [[ "$GITHUB_REF_TYPE" != "tag" ]]; then
+            DRAFT_ARGS+=(--draft)
+          fi
           FILES="$(find bundles -type f \( -name '*.exe' -o -name '*.msi' -o -name '*.dmg' -o -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' -o -name '*.pkg' -o -name '*.apk' \))"
           if [ -z "$FILES" ]; then
             echo "::error::no installer files found in bundles"
             exit 1
           fi
-          if gh release view "$TAG" --json tagName --jq .tagName >/dev/null 2>&1; then
+          if gh release view "$TAG" --json tagName,isDraft --jq '.tagName' >/dev/null 2>&1; then
             echo "::warning::release $TAG already exists; updating title and assets"
-            gh release edit "$TAG" --title "$TITLE"
+            if [[ ${#DRAFT_ARGS[@]} -gt 0 ]]; then
+              # keep manual-run artifacts as draft even when the release predates them
+              gh release edit "$TAG" --draft --title "$TITLE"
+            else
+              gh release edit "$TAG" --title "$TITLE"
+            fi
             gh release upload "$TAG" $FILES --clobber
           else
-            gh release create "$TAG" --generate-notes --title "$TITLE" $FILES
+            gh release create "$TAG" "${DRAFT_ARGS[@]}" --generate-notes --title "$TITLE" $FILES
           fi
 
           INFO="$(gh release view "$TAG" --json name,tagName,isDraft,url)"
