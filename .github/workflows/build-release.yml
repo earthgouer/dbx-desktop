@@ -189,12 +189,15 @@ jobs:
       - name: Stage APK
         run: |
           mkdir -p bundle-mobile
-          SRC="src-tauri/gen/android/app/build/outputs/apk/aarch64/debug/app-aarch64-debug.apk"
-          if [ ! -f "$SRC" ]; then
-            echo "::error::APK not found at $SRC"
+          APK="$(find src-tauri/gen/android/app/build/outputs/apk \
+                    -type f -name '*debug*.apk' ! -name '*unaligned*' 2>/dev/null | head -n 1 || true)"
+          if [ -z "$APK" ]; then
+            echo "::error::no debug APK found under src-tauri/gen/android/app/build/outputs/apk"
+            find src-tauri/gen/android/app/build/outputs -type f 2>/dev/null | head -n 50
             exit 1
           fi
-          cp "$SRC" "bundle-mobile/dsh-desktop-${VERSION}-android-arm64-debug.apk"
+          echo "found APK: $APK"
+          cp "$APK" "bundle-mobile/dsh-desktop-${VERSION}-android-arm64-debug.apk"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
@@ -249,7 +252,7 @@ jobs:
           bash .github/scripts/patch-mobile.sh ios
 
       - name: Build simulator app
-        run: npm run tauri ios build -- --config release-version.json --target aarch64-apple-ios-sim
+        run: npm run tauri ios build -- --config release-version.json --target aarch64-sim
 
       - name: Stage simulator zip
         run: |
