@@ -10,10 +10,34 @@
     <main class="app">
       <div class="card">
         <div class="logo">dsh</div>
-        <h1>DSH Desktop</h1>
-        <p id="status" class="status">正在检测 dsh 服务…</p>
-        <div id="spinner" class="spinner" aria-label="loading"></div>
-        <p id="url" class="url" hidden></p>
+        <h1 id="title">DSH Desktop</h1>
+
+        <!-- 桌面端：自动检测 / 启动本机 dsh -->
+        <section id="auto-flow">
+          <p id="status" class="status">正在检测 dsh 服务…</p>
+          <div id="spinner" class="spinner" aria-label="loading"></div>
+          <p id="url" class="url" hidden></p>
+        </section>
+
+        <!-- 移动端：手动输入远端 dsh 地址 -->
+        <section id="remote-flow" hidden>
+          <form id="connect-form" autocomplete="off">
+            <label class="field">
+              <span>电脑 IP 地址</span>
+              <input id="host-input" name="host" type="text" inputmode="url"
+                     placeholder="例如 192.168.1.100" required />
+            </label>
+            <label class="field field-port">
+              <span>端口</span>
+              <input id="port-input" name="port" type="number" inputmode="numeric"
+                     min="1" max="65535" value="3080" required />
+            </label>
+            <button id="connect-btn" type="submit" class="btn primary">连接</button>
+          </form>
+          <p id="remote-status" class="status" hidden></p>
+          <div id="remote-spinner" class="spinner" aria-label="loading" hidden></div>
+        </section>
+
         <div id="error" class="error" hidden>
           <p id="error-text"></p>
           <button id="retry" class="btn">重试</button>

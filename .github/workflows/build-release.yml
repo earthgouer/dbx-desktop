@@ -129,9 +129,149 @@ jobs:
             src-tauri/target/aarch64-pc-windows-msvc/release/bundle/*
           if-no-files-found: error
 
+  build-android:
+    name: Build (Android arm64)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve version from tag
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            TAG="${GITHUB_REF_NAME}"
+          else
+            TAG="$(git describe --tags --abbrev=0)"
+          fi
+          VERSION="${TAG#v}"
+          echo "TAG=${TAG}"
+          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
+          printf '{"version":"%s"}\n' "${VERSION}" > release-version.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Android NDK
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;27.0.12077973" > /dev/null
+          echo "NDK_HOME=$ANDROID_HOME/ndk/27.0.12077973" >> "$GITHUB_ENV"
+
+      - name: Install frontend dependencies
+        run: npm install
+
+      - name: Init and patch Android project
+        run: |
+          npm run tauri android init
+          bash .github/scripts/patch-mobile.sh android
+
+      - name: Build debug APK
+        run: npm run tauri android build -- --config release-version.json --apk --debug --target aarch64
+
+      - name: Stage APK
+        run: |
+          mkdir -p bundle-mobile
+          SRC="src-tauri/gen/android/app/build/outputs/apk/aarch64/debug/app-aarch64-debug.apk"
+          if [ ! -f "$SRC" ]; then
+            echo "::error::APK not found at $SRC"
+            exit 1
+          fi
+          cp "$SRC" "bundle-mobile/dsh-desktop-${VERSION}-android-arm64-debug.apk"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: bundle-android
+          path: bundle-mobile/*
+          if-no-files-found: error
+
+  build-ios:
+    name: Build (iOS simulator)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve version from tag
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            TAG="${GITHUB_REF_NAME}"
+          else
+            TAG="$(git describe --tags --abbrev=0)"
+          fi
+          VERSION="${TAG#v}"
+          echo "TAG=${TAG}"
+          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
+          printf '{"version":"%s"}\n' "${VERSION}" > release-version.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios,aarch64-apple-ios-sim
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Install frontend dependencies
+        run: npm install
+
+      - name: Init and patch iOS project
+        run: |
+          npm run tauri ios init
+          bash .github/scripts/patch-mobile.sh ios
+
+      - name: Build simulator app
+        run: npm run tauri ios build -- --config release-version.json --target aarch64-apple-ios-sim
+
+      - name: Stage simulator zip
+        run: |
+          APP_PATH="$(find src-tauri/gen/apple/build -type d -name '*.app' | head -n 1)"
+          if [ -z "$APP_PATH" ]; then
+            echo "::error::built .app not found under src-tauri/gen/apple/build"
+            exit 1
+          fi
+          mkdir -p bundle-mobile
+          cd "$(dirname "$APP_PATH")"
+          zip -qry "$GITHUB_WORKSPACE/bundle-mobile/dsh-desktop-${VERSION}-ios-simulator.zip" "$(basename "$APP_PATH")"
+
+      - name: Upload simulator zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: bundle-ios-simulator
+          path: bundle-mobile/*
+          if-no-files-found: error
+
   release:
     name: Create release
-    needs: build
+    needs: [build, build-android, build-ios]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -161,7 +301,7 @@ jobs:
           fi
           TITLE="DSH Desktop ${TAG}"
           echo "GITHUB_REF_TYPE=${GITHUB_REF_TYPE} GITHUB_REF_NAME=${GITHUB_REF_NAME} TAG=${TAG}"
-          FILES="$(find bundles -type f \( -name '*.exe' -o -name '*.msi' -o -name '*.dmg' -o -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' -o -name '*.pkg' \))"
+          FILES="$(find bundles -type f \( -name '*.exe' -o -name '*.msi' -o -name '*.dmg' -o -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' -o -name '*.pkg' -o -name '*.apk' \))"
           if [ -z "$FILES" ]; then
             echo "::error::no installer files found in bundles"
             exit 1

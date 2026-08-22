@@ -18,6 +18,7 @@ DSH Desktop is a desktop launcher for [DSH (DeepSeek Harness)](https://github.co
 - **Auto start**: If no running instance is found, it locates the `dsh` command and launches `dsh web --port 3080` automatically — no manual commands needed.
 - **In-app browsing**: Once the service is ready, the dsh web interface opens directly inside the app window.
 - **Cross-platform**: Supports Windows, macOS and Linux, correctly locating the `dsh` command on every platform.
+- **Mobile**: Ships as an Android APK and an iOS app. On mobile, no local service is started — enter the IP address and port of a computer on the same network and connect directly to the running `dsh web` instance (the last address is remembered and auto-reconnected).
 - **Clean shutdown**: On exit, only the dsh process started by this app is terminated — user-started instances are never killed.
 
 ## Download
@@ -58,12 +59,23 @@ Package targets for each platform are configured in `src-tauri/tauri.conf.json`;
 
 The repository ships a [build-release.yml](.github/workflows/build-release.yml) workflow that can be triggered manually. It builds installers for Windows, macOS and Linux in one go and creates a draft release.
 
+### Mobile Builds (GitHub Actions)
+
+The same workflow also produces mobile packages in CI — no local Android/iOS toolchain required:
+
+- **Android**: the `build-android` job builds a debug-signed arm64 APK (installable out of the box) and attaches it to the GitHub Release as `*.apk`.
+- **iOS**: the `build-ios` job builds an iOS Simulator app (zipped) and uploads it as a workflow artifact. Installing on real devices requires Apple developer signing, which is not included yet; wire signing certificates (Secrets) into CI when needed.
+
+Mobile usage: connect the phone to the same network as the computer, run `dsh web --port 3080` there, then enter the computer's LAN IP (e.g. `192.168.1.100`) and port in the app. To allow plain HTTP, mobile builds enable Android cleartext traffic (`usesCleartextTraffic`) and an iOS ATS exception via [.github/scripts/patch-mobile.sh](.github/scripts/patch-mobile.sh), applied automatically in CI.
+
 ## How It Works
 
 1. On startup, the app calls the `check_dsh` command to check the service status.
 2. If dsh is already running (default port 3080, or any listening port responding with the dsh web page signature), it navigates directly.
 3. Otherwise it locates the `dsh` command (PATH first, then common install locations), launches `dsh web --port 3080` and polls until it is ready.
 4. Once ready, the web interface opens inside the window; on exit, if dsh was started by this app, its process tree is terminated as well.
+
+**Mobile**: no local process is detected or started. The app shows a connect form (IP address + port), calls `connect_remote` to probe whether the target serves dsh, then opens the remote interface in-app. The last address is saved locally and reconnected automatically on the next launch.
 
 ## Project Structure
 
@@ -80,7 +92,7 @@ dsh-desktop
 │   ├── capabilities/
 │   └── tauri.conf.json     # App configuration
 ├── doc/                    # Docs assets (screenshots, etc.)
-└── .github/workflows/      # CI builds & releases
+└── .github/                # CI build & release workflows + mobile project patch script
 ```
 
 ## Logs

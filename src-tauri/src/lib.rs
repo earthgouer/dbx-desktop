@@ -1,32 +1,46 @@
-use std::fs::OpenOptions;
 use std::io::{Read, Write};
-use std::net::{SocketAddr, TcpStream};
-use std::path::PathBuf;
-use std::process::{Command, Stdio};
-use std::sync::Mutex;
+use std::net::{SocketAddr, TcpStream, ToSocketAddrs};
 use std::time::Duration;
 
-#[cfg(windows)]
+#[cfg(desktop)]
+use std::fs::OpenOptions;
+#[cfg(desktop)]
+use std::path::PathBuf;
+#[cfg(desktop)]
+use std::process::{Command, Stdio};
+#[cfg(desktop)]
+use std::sync::Mutex;
+
+#[cfg(all(desktop, windows))]
 use std::os::windows::process::CommandExt;
 
-#[cfg(unix)]
+#[cfg(all(desktop, unix))]
 use std::os::unix::process::CommandExt;
 
 use serde::Serialize;
+#[cfg(desktop)]
 use sysinfo::{ProcessRefreshKind, System, UpdateKind};
+#[cfg(desktop)]
 use tauri::{AppHandle, Manager, State};
 
+#[cfg(desktop)]
 const DSH_HOST: &str = "127.0.0.1";
+#[cfg(desktop)]
 const DSH_PORT: u16 = 3080;
 
+/// How long a remote probe (mobile connect form) may take before we give up.
+const REMOTE_PROBE_TIMEOUT_MS: u64 = 3000;
+
+#[cfg(desktop)]
 const INSTALL_HINT: &str =
     "本机未检测到 dsh 命令。请先安装 dsh（npm install -g @deepseek-ai/dsh），安装完成后点击重试。";
 
-#[cfg(windows)]
+#[cfg(all(desktop, windows))]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-#[cfg(windows)]
+#[cfg(all(desktop, windows))]
 const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
 
+#[cfg(desktop)]
 struct DshState {
     /// PID of the dsh instance this app spawned (None when the app did not
     /// start dsh, i.e. a user-started instance is being used).
@@ -40,10 +54,12 @@ struct DshStatus {
     url: String,
 }
 
+#[cfg(desktop)]
 fn dsh_url(port: Option<u16>) -> String {
     format!("http://{DSH_HOST}:{}", port.unwrap_or(DSH_PORT))
 }
 
+#[cfg(desktop)]
 fn dsh_in_dir(dir: &std::path::Path) -> Option<PathBuf> {
     let base = dir.join("dsh");
     if base.is_file() {
@@ -66,7 +82,7 @@ fn dsh_in_dir(dir: &std::path::Path) -> Option<PathBuf> {
 /// login shell's PATH, so we scan a set of common locations: npm/pnpm/bun
 /// global bins, cargo, node version managers (nvm/volta/asdf/fnm/mise), and
 /// the system bin dirs.
-#[cfg(not(windows))]
+#[cfg(all(desktop, not(windows)))]
 fn common_bin_dirs() -> Vec<PathBuf> {
     let mut dirs = vec![
         PathBuf::from("/usr/local/bin"),
@@ -100,6 +116,7 @@ fn common_bin_dirs() -> Vec<PathBuf> {
 /// how dsh was installed. Searches PATH first, then a set of common install
 /// locations (GUI-launched apps on macOS/Linux do not always inherit the
 /// login shell's PATH).
+#[cfg(desktop)]
 fn find_dsh() -> Option<PathBuf> {
     if let Ok(path) = std::env::var("PATH") {
         for dir in std::env::split_paths(&path) {
@@ -119,6 +136,7 @@ fn find_dsh() -> Option<PathBuf> {
     None
 }
 
+#[cfg(desktop)]
 fn dsh_installed() -> bool {
     find_dsh().is_some()
 }
@@ -127,6 +145,7 @@ fn dsh_installed() -> bool {
 /// executable: the bare `dsh`, a `dsh`/`dsh.exe` binary invoked through its
 /// absolute path (e.g. `/usr/local/bin/dsh`, `~/.cargo/bin/dsh`), or a node
 /// script under the `@deepseek-ai/dsh` package.
+#[cfg(desktop)]
 fn is_dsh_token(token: &str) -> bool {
     if token == "dsh" {
         return true;
@@ -155,6 +174,7 @@ fn is_dsh_token(token: &str) -> bool {
 /// Matching is strict on purpose: a bare token "web" plus a dsh-looking path
 /// or command, so the app's own WebView2 processes (`--webview-exe-name=...`)
 /// never match.
+#[cfg(desktop)]
 fn find_dsh_processes() -> Vec<u32> {
     let mut sys = System::new();
     sys.refresh_processes_specifics(ProcessRefreshKind::new().with_cmd(UpdateKind::Always));
@@ -171,11 +191,13 @@ fn find_dsh_processes() -> Vec<u32> {
     pids
 }
 
+#[cfg(desktop)]
 fn parse_port(addr: &str) -> Option<u16> {
     addr.rsplit(':').next()?.parse::<u16>().ok()
 }
 
 /// /proc/net/tcp uses hex-encoded ports (e.g. `0100007F:0C08` -> 3080).
+#[cfg(desktop)]
 #[allow(dead_code)]
 fn parse_hex_port(addr: &str) -> Option<u16> {
     u16::from_str_radix(addr.rsplit(':').next()?, 16).ok()
@@ -183,7 +205,7 @@ fn parse_hex_port(addr: &str) -> Option<u16> {
 
 /// Parse `netstat -ano` output (Windows) and return the listening TCP ports
 /// owned by `pid`.
-#[allow(dead_code)]
+#[cfg(desktop)]
 fn ports_from_netstat(out: &str, pid: u32) -> Vec<u16> {
     let mut ports = Vec::new();
     for line in out.lines() {
@@ -203,6 +225,7 @@ fn ports_from_netstat(out: &str, pid: u32) -> Vec<u16> {
 
 /// Parse `/proc/<pid>/net/tcp` (or tcp6) output (Linux). `inodes` is the set
 /// of socket inodes held by the process's fds; only those rows are returned.
+#[cfg(desktop)]
 #[allow(dead_code)]
 fn ports_from_proc_tcp(tcp: &str, inodes: &[u64]) -> Vec<u16> {
     let mut ports = Vec::new();
@@ -223,6 +246,7 @@ fn ports_from_proc_tcp(tcp: &str, inodes: &[u64]) -> Vec<u16> {
 
 /// Parse `lsof -nP -iTCP -sTCP:LISTEN -a -p <pid>` output (macOS) and return
 /// the listening TCP ports owned by `pid`.
+#[cfg(desktop)]
 #[allow(dead_code)]
 fn ports_from_lsof(out: &str, pid: u32) -> Vec<u16> {
     let mut ports = Vec::new();
@@ -246,6 +270,7 @@ fn ports_from_lsof(out: &str, pid: u32) -> Vec<u16> {
 }
 
 /// Listening TCP ports owned by `pid`, discovered per platform.
+#[cfg(desktop)]
 fn listening_ports_of(pid: u32) -> Vec<u16> {
     #[cfg(windows)]
     {
@@ -311,13 +336,27 @@ fn parse_status(head: &str) -> Option<u16> {
     parts.next()?.parse::<u16>().ok()
 }
 
-/// GET / on `port`; returns the HTTP status code and the first bytes of the
-/// body if a response arrived.
-fn fetch_head(port: u16) -> Option<(u16, Vec<u8>)> {
-    let addr: SocketAddr = format!("{DSH_HOST}:{port}").parse().ok()?;
-    let mut stream = TcpStream::connect_timeout(&addr, Duration::from_millis(800)).ok()?;
-    stream.set_read_timeout(Some(Duration::from_millis(800))).ok()?;
-    let req = format!("GET / HTTP/1.0\r\nHost: {DSH_HOST}:{port}\r\n\r\n");
+/// Resolve `host:port` into a concrete `SocketAddr`. Accepts IP literals
+/// directly and falls back to DNS resolution for hostnames.
+fn resolve_addr(host: &str, port: u16) -> Option<SocketAddr> {
+    if let Ok(addr) = format!("{host}:{port}").parse::<SocketAddr>() {
+        return Some(addr);
+    }
+    format!("{host}:{port}")
+        .to_socket_addrs()
+        .ok()?
+        .next()
+}
+
+/// GET / on `host:port`; returns the HTTP status code and the first bytes of
+/// the body if a response arrived.
+fn fetch_head(host: &str, port: u16, timeout_ms: u64) -> Option<(u16, Vec<u8>)> {
+    let addr = resolve_addr(host, port)?;
+    let mut stream = TcpStream::connect_timeout(&addr, Duration::from_millis(timeout_ms)).ok()?;
+    stream
+        .set_read_timeout(Some(Duration::from_millis(timeout_ms)))
+        .ok()?;
+    let req = format!("GET / HTTP/1.0\r\nHost: {host}:{port}\r\n\r\n");
     stream.write_all(req.as_bytes()).ok()?;
     // Read until the headers plus a chunk of the body arrive, so a slow or
     // split first write can't hide the "DeepSeek/Harness" markers.
@@ -353,10 +392,10 @@ fn fetch_head(port: u16) -> Option<(u16, Vec<u8>)> {
     Some((code, buf))
 }
 
-/// True when `port` answers with an HTTP 2xx/3xx page that looks like the dsh
-/// web UI (DeepSeek Harness).
-fn is_dsh_server(port: u16) -> bool {
-    match fetch_head(port) {
+/// True when `host:port` answers with an HTTP 2xx/3xx page that looks like
+/// the dsh web UI (DeepSeek Harness).
+fn is_dsh_server(host: &str, port: u16, timeout_ms: u64) -> bool {
+    match fetch_head(host, port, timeout_ms) {
         Some((code, body)) if (200..400).contains(&code) => {
             let text = String::from_utf8_lossy(&body).to_lowercase();
             text.contains("deepseek") || text.contains("harness")
@@ -368,13 +407,14 @@ fn is_dsh_server(port: u16) -> bool {
 /// Resolve the port of a running dsh web instance. Prefers the default port
 /// (3080), then any port a running dsh process is serving. Returns `None`
 /// when nothing is serving dsh.
+#[cfg(desktop)]
 fn discover_dsh() -> Option<u16> {
-    if is_dsh_server(DSH_PORT) {
+    if is_dsh_server(DSH_HOST, DSH_PORT, 800) {
         return Some(DSH_PORT);
     }
     for pid in find_dsh_processes() {
         for port in listening_ports_of(pid) {
-            if port != DSH_PORT && is_dsh_server(port) {
+            if port != DSH_PORT && is_dsh_server(DSH_HOST, port, 800) {
                 return Some(port);
             }
         }
@@ -386,6 +426,7 @@ fn discover_dsh() -> Option<u16> {
 /// newer launcher opens the default browser on start unless `--no-open` is
 /// given, but a version that doesn't know the flag would abort with "unknown
 /// option", so the flag is only passed when the installed dsh supports it.
+#[cfg(desktop)]
 fn dsh_supports_no_open(dsh_path: &std::path::Path) -> bool {
     let (program, args): (String, Vec<String>) = if cfg!(windows) {
         (
@@ -409,6 +450,7 @@ fn dsh_supports_no_open(dsh_path: &std::path::Path) -> bool {
     stdout.contains("--no-open") || stderr.contains("--no-open")
 }
 
+#[cfg(desktop)]
 fn spawn_dsh(app: &AppHandle) -> Result<u32, String> {
     let dsh_path = find_dsh().ok_or_else(|| INSTALL_HINT.to_string())?;
 
@@ -490,6 +532,7 @@ fn spawn_dsh(app: &AppHandle) -> Result<u32, String> {
 
 /// Kill the dsh instance this app spawned (the whole process tree). Used on
 /// app exit; only called when the app started dsh itself.
+#[cfg(desktop)]
 fn kill_dsh_tree(pid: u32) {
     #[cfg(windows)]
     {
@@ -517,6 +560,7 @@ fn kill_dsh_tree(pid: u32) {
     }
 }
 
+#[cfg(desktop)]
 fn ensure_started(app: &AppHandle, state: &DshState) -> Result<Option<u32>, String> {
     if discover_dsh().is_some() {
         return Ok(None);
@@ -538,6 +582,7 @@ fn ensure_started(app: &AppHandle, state: &DshState) -> Result<Option<u32>, Stri
     Ok(Some(pid))
 }
 
+#[cfg(desktop)]
 #[tauri::command]
 fn check_dsh() -> DshStatus {
     let port = discover_dsh();
@@ -548,6 +593,7 @@ fn check_dsh() -> DshStatus {
     }
 }
 
+#[cfg(desktop)]
 #[tauri::command]
 fn start_dsh(app: AppHandle, state: State<'_, DshState>) -> Result<DshStatus, String> {
     let port = discover_dsh();
@@ -567,9 +613,59 @@ fn start_dsh(app: AppHandle, state: State<'_, DshState>) -> Result<DshStatus, St
     })
 }
 
+/// Whether this build targets a mobile platform (Android/iOS). The frontend
+/// uses it to pick between auto-starting local dsh (desktop) and asking for a
+/// remote host:port (mobile).
+#[tauri::command]
+fn is_mobile() -> bool {
+    cfg!(mobile)
+}
+
+/// Validate a user-supplied hostname/IP. Only bare hosts are accepted; the
+/// port is a separate numeric field and the URL is assembled here so nothing
+/// user-controlled can inject a scheme or path into it.
+fn sanitize_host(raw: &str) -> Result<String, String> {
+    let host = raw.trim();
+    if host.is_empty() {
+        return Err("请输入电脑的 IP 地址".into());
+    }
+    if host.len() > 253 {
+        return Err("主机地址过长".into());
+    }
+    let invalid =
+        |c: char| c.is_whitespace() || matches!(c, ':' | '/' | '\\' | '@' | '?' | '#' | '%');
+    if host.chars().any(invalid) {
+        return Err(
+            "主机地址格式不正确，请只填写 IP 地址或主机名（端口请在单独的输入框填写）".into(),
+        );
+    }
+    Ok(host.to_string())
+}
+
+/// Probe `http://host:port` and report whether it serves dsh. `running` is
+/// false when the host is unreachable or does not look like dsh; the URL is
+/// returned either way so the caller can still open it manually.
+#[tauri::command]
+fn connect_remote(host: String, port: u16) -> Result<DshStatus, String> {
+    let host = sanitize_host(&host)?;
+    let url = format!("http://{host}:{port}");
+    let running = is_dsh_server(&host, port, REMOTE_PROBE_TIMEOUT_MS);
+    Ok(DshStatus {
+        running,
+        installed: true,
+        url,
+    })
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let app = tauri::Builder::default()
+    let builder = tauri::Builder::default();
+
+    // The single-instance / window-state plugins and the dsh process
+    // management below are desktop-only; on mobile the app is a plain
+    // remote-URL launcher.
+    #[cfg(desktop)]
+    let builder = builder
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             if let Some(win) = app.get_webview_window("main") {
@@ -580,22 +676,39 @@ pub fn run() {
         }))
         .manage(DshState {
             spawned: Mutex::new(None),
+        });
+
+    let app = builder
+        .invoke_handler({
+            #[cfg(desktop)]
+            {
+                tauri::generate_handler![check_dsh, start_dsh, connect_remote, is_mobile]
+            }
+            #[cfg(mobile)]
+            {
+                tauri::generate_handler![connect_remote, is_mobile]
+            }
         })
-        .invoke_handler(tauri::generate_handler![check_dsh, start_dsh])
         .setup(|app| {
-            let handle = app.handle().clone();
-            std::thread::spawn(move || {
-                let state = handle.state::<DshState>();
-                if let Err(e) = ensure_started(&handle, &state) {
-                    eprintln!("dsh auto-start failed: {e}");
-                }
-            });
+            #[cfg(desktop)]
+            {
+                let handle = app.handle().clone();
+                std::thread::spawn(move || {
+                    let state = handle.state::<DshState>();
+                    if let Err(e) = ensure_started(&handle, &state) {
+                        eprintln!("dsh auto-start failed: {e}");
+                    }
+                });
+            }
+            #[cfg(mobile)]
+            let _ = app;
             Ok(())
         })
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
 
     app.run(|handle, event| {
+        #[cfg(desktop)]
         if let tauri::RunEvent::Exit = event {
             // Only stop dsh when this app spawned it; a user-started instance
             // keeps running after the app closes.
@@ -608,10 +721,14 @@ pub fn run() {
                 kill_dsh_tree(pid);
             }
         }
+        #[cfg(mobile)]
+        {
+            let _ = (handle, event);
+        }
     });
 }
 
-#[cfg(test)]
+#[cfg(all(test, desktop))]
 mod tests {
     use super::*;
 
@@ -669,6 +786,20 @@ node    999   cc    10u  IPv4 0x3   0t0     TCP 127.0.0.1:8443 (LISTEN)
 ";
         assert_eq!(ports_from_lsof(sample, 38316), vec![3080, 3088]);
         assert_eq!(ports_from_lsof(sample, 999), vec![8443]);
+    }
+
+    #[test]
+    fn sanitize_host_basic() {
+        assert_eq!(sanitize_host(" 192.168.1.10 "), Ok("192.168.1.10".into()));
+        assert_eq!(sanitize_host("mypc.local"), Ok("mypc.local".into()));
+        assert!(sanitize_host("").is_err());
+        assert!(sanitize_host("   ").is_err());
+        // scheme / path / port injection attempts are rejected
+        assert!(sanitize_host("http://192.168.1.10").is_err());
+        assert!(sanitize_host("192.168.1.10:3080").is_err());
+        assert!(sanitize_host("192.168.1.10/x").is_err());
+        assert!(sanitize_host(r"192.168.1.10\dsh").is_err());
+        assert!(sanitize_host("user@host").is_err());
     }
 
     #[test]
