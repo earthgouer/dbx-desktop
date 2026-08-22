@@ -274,8 +274,11 @@ fn ports_from_lsof(out: &str, pid: u32) -> Vec<u16> {
 fn listening_ports_of(pid: u32) -> Vec<u16> {
     #[cfg(windows)]
     {
-        let out = Command::new("netstat")
-            .args(["-ano"])
+        // CREATE_NO_WINDOW keeps netstat from flashing a console window on
+        // every startup probe of this GUI app.
+        let mut netstat = Command::new("netstat");
+        netstat.args(["-ano"]).creation_flags(CREATE_NO_WINDOW);
+        let out = netstat
             .output()
             .ok()
             .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
@@ -439,7 +442,12 @@ fn dsh_supports_no_open(dsh_path: &std::path::Path) -> bool {
             vec!["web".into(), "--help".into()],
         )
     };
-    let Ok(out) = Command::new(&program).args(&args).output() else {
+    let mut cmd = Command::new(&program);
+    cmd.args(&args);
+    // `cmd /C` on Windows would flash a console window in this GUI app.
+    #[cfg(all(desktop, windows))]
+    cmd.creation_flags(CREATE_NO_WINDOW);
+    let Ok(out) = cmd.output() else {
         return false;
     };
     if !out.status.success() {
