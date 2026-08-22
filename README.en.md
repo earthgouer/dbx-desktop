@@ -63,10 +63,28 @@ The repository ships a [build-release.yml](.github/workflows/build-release.yml) 
 
 The same workflow also produces mobile packages in CI — no local Android/iOS toolchain required:
 
-- **Android**: the `build-android` job builds a debug-signed arm64 APK (installable out of the box) and attaches it to the GitHub Release as `*.apk`.
-- **iOS**: the `build-ios` job builds an iOS Simulator app (zipped) and uploads it as a workflow artifact. Installing on real devices requires Apple developer signing, which is not included yet; wire signing certificates (Secrets) into CI when needed.
+- **Android**: the `build-android` job builds a signed arm64 **release APK** (aligned and signed with zipalign + apksigner — installable and updatable in place) and attaches it to the GitHub Release as `*.apk`. All signing material is injected via GitHub Secrets — configure these under **Settings → Secrets and variables → Actions**:
 
-Mobile usage: connect the phone to the same network as the computer, run `dsh web --port 3080` there, then enter the computer's LAN IP (e.g. `192.168.1.100`) and port in the app. To allow plain HTTP, mobile builds enable Android cleartext traffic (`usesCleartextTraffic`) and an iOS ATS exception via [.github/scripts/patch-mobile.sh](.github/scripts/patch-mobile.sh), applied automatically in CI.
+  | Secret | Description |
+  |---|---|
+  | `ANDROID_KEYSTORE_BASE64` | the keystore file encoded as base64 |
+  | `ANDROID_KEYSTORE_PASSWORD` | keystore password |
+  | `ANDROID_KEY_ALIAS` | key alias (optional, defaults to `dsh-desktop`) |
+
+  Generate a keystore locally and get its base64 (Windows PowerShell):
+
+  ```powershell
+  & "$env:JAVA_HOME\bin\keytool.exe" -genkeypair -v -keystore dsh-release.keystore `
+    -storetype PKCS12 -alias dsh-desktop -keyalg RSA -keysize 2048 -validity 10000 `
+    -storepass "your-password" -dname "CN=dsh-desktop, C=CN"
+  [Convert]::ToBase64String([IO.File]::ReadAllBytes("dsh-release.keystore")) # paste into the Secret
+  ```
+
+  On macOS/Linux use `base64 -i dsh-release.keystore`. **Always back up the keystore file**: if it is lost, updates can no longer be signed with the same identity.
+- **iOS**: the `build-ios` job builds an iOS Simulator app (zipped) and uploads it as a workflow artifact. Installing on real devices requires Apple developer signing, which is not included yet; wire signing certificates (Secrets) into CI when needed.
+- **Icons**: both jobs run `tauri icon app-icon.png` after project init, so the Android launcher icons, the iOS AppIcon and the desktop icons are all generated from the same source image for a consistent look.
+
+Mobile usage: connect the phone to the same network as the computer, run `dsh web --port 3080` there, then enter the computer's LAN IP (e.g. `192.168.1.100`) and port in the app. To allow plain HTTP, mobile builds enable Android cleartext traffic (including release builds, patched automatically by [.github/scripts/patch-mobile.sh](.github/scripts/patch-mobile.sh)) and an iOS ATS exception.
 
 ## How It Works
 

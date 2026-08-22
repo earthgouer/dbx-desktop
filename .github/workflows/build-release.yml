@@ -183,21 +183,57 @@ jobs:
           npm run tauri android init
           bash .github/scripts/patch-mobile.sh android
 
-      - name: Build debug APK
-        run: npm run tauri android build -- --config release-version.json --apk --debug --target aarch64
+      - name: Regenerate app icons from app-icon.png
+        run: npm run tauri icon app-icon.png
 
-      - name: Stage APK
+      # Signing material comes entirely from repo secrets:
+      #   ANDROID_KEYSTORE_BASE64  - keystore file encoded as base64
+      #   ANDROID_KEYSTORE_PASSWORD - keystore/key password
+      #   ANDROID_KEY_ALIAS        - key alias (defaults to dsh-desktop)
+      - name: Restore release keystore from secrets
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "::error::secret ANDROID_KEYSTORE_BASE64 is not set."
+            echo "::error::Add it under Settings > Secrets and variables > Actions (base64 of the release keystore)."
+            exit 1
+          fi
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/dsh-release.keystore"
+
+      - name: Build release APK
+        run: npm run tauri android build -- --config release-version.json --apk --target aarch64
+
+      - name: Align, sign and stage APK
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          if [ -z "$ANDROID_KEYSTORE_PASSWORD" ]; then
+            echo "::error::secret ANDROID_KEYSTORE_PASSWORD is not set."
+            exit 1
+          fi
           mkdir -p bundle-mobile
           APK="$(find src-tauri/gen/android/app/build/outputs/apk \
-                    -type f -name '*debug*.apk' ! -name '*unaligned*' 2>/dev/null | head -n 1 || true)"
+                    -type f -name '*release*.apk' ! -name '*unaligned*' 2>/dev/null | head -n 1 || true)"
           if [ -z "$APK" ]; then
-            echo "::error::no debug APK found under src-tauri/gen/android/app/build/outputs/apk"
+            echo "::error::no release APK found under src-tauri/gen/android/app/build/outputs/apk"
             find src-tauri/gen/android/app/build/outputs -type f 2>/dev/null | head -n 50
             exit 1
           fi
           echo "found APK: $APK"
-          cp "$APK" "bundle-mobile/dsh-desktop-${VERSION}-android-arm64-debug.apk"
+          KS_PATH="$RUNNER_TEMP/dsh-release.keystore"
+          KS_PASS="$ANDROID_KEYSTORE_PASSWORD"
+          KEY_ALIAS="${ANDROID_KEY_ALIAS:-dsh-desktop}"
+          BUILD_TOOLS="$(ls -d "$ANDROID_HOME/build-tools/"* | sort -V | tail -n 1)"
+          ALIGNED="$RUNNER_TEMP/app-aligned.apk"
+          SIGNED="bundle-mobile/dsh-desktop-${VERSION}-android-arm64-release.apk"
+          "$BUILD_TOOLS/zipalign" -f 4 "$APK" "$ALIGNED"
+          "$BUILD_TOOLS/apksigner" sign \
+            --ks "$KS_PATH" --ks-key-alias "$KEY_ALIAS" \
+            --ks-pass pass:"$KS_PASS" --key-pass pass:"$KS_PASS" \
+            --out "$SIGNED" "$ALIGNED"
+          "$BUILD_TOOLS/apksigner" verify "$SIGNED"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
@@ -250,6 +286,9 @@ jobs:
         run: |
           npm run tauri ios init
           bash .github/scripts/patch-mobile.sh ios
+
+      - name: Regenerate app icons from app-icon.png
+        run: npm run tauri icon app-icon.png
 
       - name: Build simulator app
         run: npm run tauri ios build -- --config release-version.json --target aarch64-sim

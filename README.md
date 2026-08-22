@@ -62,10 +62,28 @@ npm run tauri build
 
 同一工作流会在 CI 上自动产出手机包，本地无需安装 Android/iOS 环境：
 
-- **Android**：`build-android` job 构建 arm64 架构的 Debug APK（debug 签名，可直接安装），并作为 `*.apk` 附件上传到 GitHub Release。
-- **iOS**：`build-ios` job 构建 iOS 模拟器包（`.app` 压缩为 zip），仅上传为 workflow artifact。真机安装需要苹果开发者证书签名，暂未包含；如需分发可后续在 CI 中接入签名证书（Secrets）。
+- **Android**：`build-android` job 构建 arm64 架构的 **Release 签名 APK**（zipalign + apksigner 对齐签名，可直接安装、支持覆盖升级），并作为 `*.apk` 附件上传到 GitHub Release。签名材料全部通过 GitHub Secrets 注入，需在仓库 **Settings → Secrets and variables → Actions** 配置：
 
-手机端使用说明：手机与电脑连接同一网络，在电脑上运行 `dsh web --port 3080`，然后在 App 中输入电脑的局域网 IP（如 `192.168.1.100`）和端口即可打开 dsh 界面。为支持明文 HTTP 连接，移动端构建已启用 Android 明文流量（`usesCleartextTraffic`）与 iOS ATS 例外（由 [.github/scripts/patch-mobile.sh](.github/scripts/patch-mobile.sh) 在 CI 中自动打补丁）。
+  | Secret | 说明 |
+  |---|---|
+  | `ANDROID_KEYSTORE_BASE64` | keystore 文件的 base64 编码 |
+  | `ANDROID_KEYSTORE_PASSWORD` | keystore 密码 |
+  | `ANDROID_KEY_ALIAS` | key 别名（可选，默认 `dsh-desktop`） |
+
+  本地生成 keystore 并得到 base64（Windows PowerShell）：
+
+  ```powershell
+  & "$env:JAVA_HOME\bin\keytool.exe" -genkeypair -v -keystore dsh-release.keystore `
+    -storetype PKCS12 -alias dsh-desktop -keyalg RSA -keysize 2048 -validity 10000 `
+    -storepass "你的密码" -dname "CN=dsh-desktop, C=CN"
+  [Convert]::ToBase64String([IO.File]::ReadAllBytes("dsh-release.keystore")) # 复制输出填入 Secret
+  ```
+
+  macOS/Linux 用 `base64 -i dsh-release.keystore`。**务必备份 keystore 文件**：丢失后无法再用同一签名发布更新。
+- **iOS**：`build-ios` job 构建 iOS 模拟器包（`.app` 压缩为 zip），仅上传为 workflow artifact。真机安装需要苹果开发者证书签名，暂未包含；如需分发可后续在 CI 中接入签名证书（Secrets）。
+- **图标**：两个 job 在 init 后都会执行 `tauri icon app-icon.png`，Android 启动器图标、iOS AppIcon 与桌面端图标全部由同一张 `app-icon.png` 生成，保持一致。
+
+手机端使用说明：手机与电脑连接同一网络，在电脑上运行 `dsh web --port 3080`，然后在 App 中输入电脑的局域网 IP（如 `192.168.1.100`）和端口即可打开 dsh 界面。为支持明文 HTTP 连接，移动端构建已启用 Android 明文流量（含 release 构建，由 [.github/scripts/patch-mobile.sh](.github/scripts/patch-mobile.sh) 在 CI 中自动打补丁）与 iOS ATS 例外。
 
 ## 工作原理
 
