@@ -24,16 +24,16 @@ use sysinfo::{ProcessRefreshKind, System, UpdateKind};
 use tauri::{AppHandle, Manager, State};
 
 #[cfg(desktop)]
-const DSH_HOST: &str = "127.0.0.1";
+const DBX_HOST: &str = "127.0.0.1";
 #[cfg(desktop)]
-const DSH_PORT: u16 = 3080;
+const DBX_PORT: u16 = 4224;
 
 /// How long a remote probe (mobile connect form) may take before we give up.
 const REMOTE_PROBE_TIMEOUT_MS: u64 = 3000;
 
 #[cfg(desktop)]
 const INSTALL_HINT: &str =
-    "本机未检测到 dsh 命令。请先安装 dsh（npm install -g @deepseek-ai/dsh），安装完成后点击重试。";
+    "本机未检测到 dbx 命令。请确认 dbx 已加入系统 PATH，安装完成后点击重试。";
 
 #[cfg(all(desktop, windows))]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
@@ -41,27 +41,27 @@ const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
 
 #[cfg(desktop)]
-struct DshState {
-    /// PID of the dsh instance this app spawned (None when the app did not
-    /// start dsh, i.e. a user-started instance is being used).
+struct DbxState {
+    /// PID of the dbx instance this app spawned (None when the app did not
+    /// start dbx, i.e. a user-started instance is being used).
     spawned: Mutex<Option<u32>>,
 }
 
 #[derive(Serialize)]
-struct DshStatus {
+struct DbxStatus {
     running: bool,
     installed: bool,
     url: String,
 }
 
 #[cfg(desktop)]
-fn dsh_url(port: Option<u16>) -> String {
-    format!("http://{DSH_HOST}:{}", port.unwrap_or(DSH_PORT))
+fn dbx_url(port: Option<u16>) -> String {
+    format!("http://{DBX_HOST}:{}", port.unwrap_or(DBX_PORT))
 }
 
 #[cfg(desktop)]
-fn dsh_in_dir(dir: &std::path::Path) -> Option<PathBuf> {
-    let base = dir.join("dsh");
+fn dbx_in_dir(dir: &std::path::Path) -> Option<PathBuf> {
+    let base = dir.join("dbx");
     if base.is_file() {
         return Some(base);
     }
@@ -77,7 +77,7 @@ fn dsh_in_dir(dir: &std::path::Path) -> Option<PathBuf> {
     None
 }
 
-/// Candidate directories where `dsh` may be installed on macOS/Linux.
+/// Candidate directories where `dbx` may be installed on macOS/Linux.
 /// GUI-launched apps (Finder / `.desktop` / `open`) do not always inherit the
 /// login shell's PATH, so we scan a set of common locations: npm/pnpm/bun
 /// global bins, cargo, node version managers (nvm/volta/asdf/fnm/mise), and
@@ -112,15 +112,15 @@ fn common_bin_dirs() -> Vec<PathBuf> {
     dirs
 }
 
-/// Resolve the `dsh` command so the app works on Windows/macOS/Linux no matter
-/// how dsh was installed. Searches PATH first, then a set of common install
+/// Resolve the `dbx` command so the app works on Windows/macOS/Linux no matter
+/// how dbx was installed. Searches PATH first, then a set of common install
 /// locations (GUI-launched apps on macOS/Linux do not always inherit the
 /// login shell's PATH).
 #[cfg(desktop)]
-fn find_dsh() -> Option<PathBuf> {
+fn find_dbx() -> Option<PathBuf> {
     if let Ok(path) = std::env::var("PATH") {
         for dir in std::env::split_paths(&path) {
-            if let Some(p) = dsh_in_dir(&dir) {
+            if let Some(p) = dbx_in_dir(&dir) {
                 return Some(p);
             }
         }
@@ -128,7 +128,7 @@ fn find_dsh() -> Option<PathBuf> {
     #[cfg(not(windows))]
     {
         for dir in common_bin_dirs() {
-            if let Some(p) = dsh_in_dir(&dir) {
+            if let Some(p) = dbx_in_dir(&dir) {
                 return Some(p);
             }
         }
@@ -137,53 +137,47 @@ fn find_dsh() -> Option<PathBuf> {
 }
 
 #[cfg(desktop)]
-fn dsh_installed() -> bool {
-    find_dsh().is_some()
+fn dbx_installed() -> bool {
+    find_dbx().is_some()
 }
 
-/// True when a (lowercased) command-line token looks like the `dsh`
-/// executable: the bare `dsh`, a `dsh`/`dsh.exe` binary invoked through its
-/// absolute path (e.g. `/usr/local/bin/dsh`, `~/.cargo/bin/dsh`), or a node
-/// script under the `@deepseek-ai/dsh` package.
+/// True when a (lowercased) command-line token looks like the `dbx`
+/// executable: the bare `dbx` or a `dbx`/`dbx.exe` binary invoked through its
+/// absolute path.
 #[cfg(desktop)]
-fn is_dsh_token(token: &str) -> bool {
-    if token == "dsh" {
+fn is_dbx_token(token: &str) -> bool {
+    if token == "dbx" {
         return true;
     }
-    if let Some(name) = std::path::Path::new(token).file_name().and_then(|f| f.to_str()) {
+    if let Some(name) = std::path::Path::new(token)
+        .file_name()
+        .and_then(|f| f.to_str())
+    {
         let stem = name
             .strip_suffix(".exe")
             .or_else(|| name.strip_suffix(".cmd"))
             .or_else(|| name.strip_suffix(".bat"))
             .or_else(|| name.strip_suffix(".com"))
             .unwrap_or(name);
-        if stem == "dsh" {
+        if stem == "dbx" {
             return true;
         }
     }
-    token.contains("@deepseek-ai/dsh")
-        || token.contains(r"\dsh\")
-        || token.contains("/dsh/")
-        || token.contains(r"\dsh/")
-        || token.contains(r"/dsh\")
+    token.contains(r"\dbx\")
+        || token.contains("/dbx/")
+        || token.contains(r"\dbx/")
+        || token.contains(r"/dbx\")
 }
 
-/// Enumerate processes whose command line looks like a running `dsh web`
-/// instance (e.g. `node .../@deepseek-ai/dsh/lib/bin.js web --port 8080`).
-/// This is what lets the app find a dsh that the user started on any port.
-/// Matching is strict on purpose: a bare token "web" plus a dsh-looking path
-/// or command, so the app's own WebView2 processes (`--webview-exe-name=...`)
-/// never match.
+/// Enumerate processes whose command line looks like a running `dbx` instance.
 #[cfg(desktop)]
-fn find_dsh_processes() -> Vec<u32> {
+fn find_dbx_processes() -> Vec<u32> {
     let mut sys = System::new();
     sys.refresh_processes_specifics(ProcessRefreshKind::new().with_cmd(UpdateKind::Always));
     let mut pids = Vec::new();
     for (pid, process) in sys.processes() {
         let cmd: Vec<String> = process.cmd().iter().map(|s| s.to_lowercase()).collect();
-        let is_dsh = cmd.iter().any(|t| is_dsh_token(t));
-        let has_web = cmd.iter().any(|t| t == "web");
-        if is_dsh && has_web {
+        if cmd.iter().any(|t| is_dbx_token(t)) {
             pids.push(pid.as_u32());
         }
     }
@@ -196,7 +190,7 @@ fn parse_port(addr: &str) -> Option<u16> {
     addr.rsplit(':').next()?.parse::<u16>().ok()
 }
 
-/// /proc/net/tcp uses hex-encoded ports (e.g. `0100007F:0C08` -> 3080).
+/// /proc/net/tcp uses hex-encoded ports (e.g. `0100007F:1080` -> 4224).
 #[cfg(desktop)]
 #[allow(dead_code)]
 fn parse_hex_port(addr: &str) -> Option<u16> {
@@ -294,9 +288,7 @@ fn listening_ports_of(pid: u32) -> Vec<u16> {
             for entry in entries.flatten() {
                 if let Ok(target) = fs::read_link(entry.path()) {
                     let s = target.to_string_lossy();
-                    if let Some(num) = s
-                        .strip_prefix("socket:[")
-                        .and_then(|r| r.strip_suffix(']'))
+                    if let Some(num) = s.strip_prefix("socket:[").and_then(|r| r.strip_suffix(']'))
                     {
                         if let Ok(inode) = num.parse::<u64>() {
                             inodes.push(inode);
@@ -306,7 +298,10 @@ fn listening_ports_of(pid: u32) -> Vec<u16> {
             }
         }
         let mut ports = Vec::new();
-        for file in [format!("/proc/{pid}/net/tcp"), format!("/proc/{pid}/net/tcp6")] {
+        for file in [
+            format!("/proc/{pid}/net/tcp"),
+            format!("/proc/{pid}/net/tcp6"),
+        ] {
             if let Ok(content) = fs::read_to_string(file) {
                 ports.extend(ports_from_proc_tcp(&content, &inodes));
             }
@@ -345,10 +340,7 @@ fn resolve_addr(host: &str, port: u16) -> Option<SocketAddr> {
     if let Ok(addr) = format!("{host}:{port}").parse::<SocketAddr>() {
         return Some(addr);
     }
-    format!("{host}:{port}")
-        .to_socket_addrs()
-        .ok()?
-        .next()
+    format!("{host}:{port}").to_socket_addrs().ok()?.next()
 }
 
 /// GET / on `host:port`; returns the HTTP status code and the first bytes of
@@ -362,7 +354,7 @@ fn fetch_head(host: &str, port: u16, timeout_ms: u64) -> Option<(u16, Vec<u8>)> 
     let req = format!("GET / HTTP/1.0\r\nHost: {host}:{port}\r\n\r\n");
     stream.write_all(req.as_bytes()).ok()?;
     // Read until the headers plus a chunk of the body arrive, so a slow or
-    // split first write can't hide the "DeepSeek/Harness" markers.
+    // split first write cannot hide a valid HTTP response.
     let mut buf = Vec::with_capacity(16384);
     let mut chunk = [0u8; 4096];
     loop {
@@ -395,104 +387,45 @@ fn fetch_head(host: &str, port: u16, timeout_ms: u64) -> Option<(u16, Vec<u8>)> 
     Some((code, buf))
 }
 
-/// True when `host:port` answers with an HTTP 2xx/3xx page that looks like
-/// the dsh web UI (DeepSeek Harness).
-fn is_dsh_server(host: &str, port: u16, timeout_ms: u64) -> bool {
+/// True when `host:port` answers with an HTTP 2xx/3xx response. dbx owns a
+/// fixed port, so a successful HTTP response there is sufficient to establish
+/// readiness without depending on dbx's page title or HTML implementation.
+fn is_dbx_server(host: &str, port: u16, timeout_ms: u64) -> bool {
     match fetch_head(host, port, timeout_ms) {
-        Some((code, body)) if (200..400).contains(&code) => {
-            let text = String::from_utf8_lossy(&body).to_lowercase();
-            text.contains("deepseek") || text.contains("harness")
-        }
+        Some((code, _body)) if (200..400).contains(&code) => true,
         _ => false,
     }
 }
 
-/// Resolve the port of a running dsh web instance. Prefers the default port
-/// (3080), then any port a running dsh process is serving. Returns `None`
-/// when nothing is serving dsh.
+/// dbx always runs on the configured fixed port.
 #[cfg(desktop)]
-fn discover_dsh() -> Option<u16> {
-    if is_dsh_server(DSH_HOST, DSH_PORT, 800) {
-        return Some(DSH_PORT);
-    }
-    for pid in find_dsh_processes() {
-        for port in listening_ports_of(pid) {
-            if port != DSH_PORT && is_dsh_server(DSH_HOST, port, 800) {
-                return Some(port);
-            }
-        }
-    }
-    None
-}
-
-/// True when the installed dsh advertises `web --no-open` in its help. The
-/// newer launcher opens the default browser on start unless `--no-open` is
-/// given, but a version that doesn't know the flag would abort with "unknown
-/// option", so the flag is only passed when the installed dsh supports it.
-#[cfg(desktop)]
-fn dsh_supports_no_open(dsh_path: &std::path::Path) -> bool {
-    let (program, args): (String, Vec<String>) = if cfg!(windows) {
-        (
-            "cmd".into(),
-            vec!["/C".into(), "dsh".into(), "web".into(), "--help".into()],
-        )
-    } else {
-        (
-            dsh_path.to_string_lossy().into_owned(),
-            vec!["web".into(), "--help".into()],
-        )
-    };
-    let mut cmd = Command::new(&program);
-    cmd.args(&args);
-    // `cmd /C` on Windows would flash a console window in this GUI app.
-    #[cfg(all(desktop, windows))]
-    cmd.creation_flags(CREATE_NO_WINDOW);
-    let Ok(out) = cmd.output() else {
-        return false;
-    };
-    if !out.status.success() {
-        return false;
-    }
-    let stdout = String::from_utf8_lossy(&out.stdout);
-    let stderr = String::from_utf8_lossy(&out.stderr);
-    stdout.contains("--no-open") || stderr.contains("--no-open")
+fn discover_dbx() -> Option<u16> {
+    is_dbx_server(DBX_HOST, DBX_PORT, 800).then_some(DBX_PORT)
 }
 
 #[cfg(desktop)]
-fn spawn_dsh(app: &AppHandle) -> Result<u32, String> {
-    let dsh_path = find_dsh().ok_or_else(|| INSTALL_HINT.to_string())?;
+fn spawn_dbx(app: &AppHandle) -> Result<u32, String> {
+    let dbx_path = find_dbx().ok_or_else(|| INSTALL_HINT.to_string())?;
 
     let log_dir = app.path().app_log_dir().map_err(|e| e.to_string())?;
     std::fs::create_dir_all(&log_dir).map_err(|e| e.to_string())?;
 
-    let log_path = log_dir.join("dsh-web.log");
+    let log_path = log_dir.join("dbx.log");
     let log_file = OpenOptions::new()
         .create(true)
         .append(true)
         .open(&log_path)
         .map_err(|e| format!("cannot open log {}: {e}", log_path.display()))?;
 
-    let no_open = dsh_supports_no_open(&dsh_path);
-
-    // Windows needs `cmd /C` to run the npm shim (dsh.cmd); other platforms
-    // can exec the resolved `dsh` directly (binary or shebang script).
+    // dbx uses port 4224 by default. Windows needs `cmd /C` to run a possible
+    // npm shim (`dbx.cmd`); other platforms can execute the resolved command
+    // directly.
     let (program, args): (String, Vec<String>) = if cfg!(windows) {
-        let mut args = vec!["/C".into(), "dsh".into(), "web".into()];
-        if no_open {
-            args.push("--no-open".into());
-        }
-        args.extend(["--port".into(), DSH_PORT.to_string()]);
+        let args = vec!["/C".into(), "dbx".into()];
         ("cmd".into(), args)
     } else {
-        let mut args = vec!["web".into()];
-        if no_open {
-            args.push("--no-open".into());
-        }
-        args.extend(["--port".into(), DSH_PORT.to_string()]);
-        (
-            dsh_path.to_string_lossy().into_owned(),
-            args,
-        )
+        let args = Vec::new();
+        (dbx_path.to_string_lossy().into_owned(), args)
     };
 
     let mut cmd = Command::new(&program);
@@ -504,14 +437,13 @@ fn spawn_dsh(app: &AppHandle) -> Result<u32, String> {
         ))
         .stderr(Stdio::from(log_file));
 
-    // GUI-launched apps (Finder / `.desktop` / `open`) inherit a minimal PATH,
-    // so dsh's shebang (`#!/usr/bin/env node`) can fail to locate node.
-    // Prepend the dir holding dsh (npm/nvm/pnpm keep node next to dsh there)
-    // plus every directory we search for dsh to the inherited PATH.
+    // GUI-launched apps (Finder / `.desktop` / `open`) inherit a minimal PATH.
+    // Prepend the dbx directory and all locations scanned above so auxiliary
+    // executables remain discoverable.
     #[cfg(unix)]
     {
         let mut dirs: Vec<String> = Vec::new();
-        if let Some(parent) = dsh_path.parent() {
+        if let Some(parent) = dbx_path.parent() {
             dirs.push(parent.to_string_lossy().into_owned());
         }
         dirs.extend(
@@ -528,7 +460,7 @@ fn spawn_dsh(app: &AppHandle) -> Result<u32, String> {
     #[cfg(windows)]
     cmd.creation_flags(CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP);
 
-    // Put dsh in its own process group so we can kill the whole tree on exit.
+    // Put dbx in its own process group so we can kill the whole tree on exit.
     #[cfg(unix)]
     cmd.process_group(0);
 
@@ -538,10 +470,10 @@ fn spawn_dsh(app: &AppHandle) -> Result<u32, String> {
     Ok(child.id())
 }
 
-/// Kill the dsh instance this app spawned (the whole process tree). Used on
-/// app exit; only called when the app started dsh itself.
+/// Kill the dbx instance this app spawned (the whole process tree). Used on
+/// app exit; only called when the app started dbx itself.
 #[cfg(desktop)]
-fn kill_dsh_tree(pid: u32) {
+fn kill_dbx_tree(pid: u32) {
     #[cfg(windows)]
     {
         let _ = Command::new("taskkill")
@@ -552,7 +484,7 @@ fn kill_dsh_tree(pid: u32) {
 
     #[cfg(unix)]
     {
-        // dsh was spawned with process_group(0), so its group id == pid.
+        // dbx was spawned with process_group(0), so its group id == pid.
         unsafe {
             libc::kill(-(pid as i32), libc::SIGTERM);
         }
@@ -569,60 +501,60 @@ fn kill_dsh_tree(pid: u32) {
 }
 
 #[cfg(desktop)]
-fn ensure_started(app: &AppHandle, state: &DshState) -> Result<Option<u32>, String> {
-    if discover_dsh().is_some() {
+fn ensure_started(app: &AppHandle, state: &DbxState) -> Result<Option<u32>, String> {
+    if discover_dbx().is_some() {
         return Ok(None);
     }
-    if !dsh_installed() {
+    if !dbx_installed() {
         return Err(INSTALL_HINT.to_string());
     }
-    // A dsh process exists but is not serving yet (still booting): wait for it
-    // instead of spawning a duplicate on port 3080.
-    if !find_dsh_processes().is_empty() {
+    // A dbx process exists but is not serving yet (still booting): wait for it
+    // instead of spawning a duplicate on port 4224.
+    if !find_dbx_processes().is_empty() {
         return Ok(None);
     }
     let mut spawned = state.spawned.lock().unwrap();
     if spawned.is_some() {
         return Ok(None);
     }
-    let pid = spawn_dsh(app)?;
+    let pid = spawn_dbx(app)?;
     *spawned = Some(pid);
     Ok(Some(pid))
 }
 
 #[cfg(desktop)]
 #[tauri::command]
-fn check_dsh() -> DshStatus {
-    let port = discover_dsh();
-    DshStatus {
+fn check_dbx() -> DbxStatus {
+    let port = discover_dbx();
+    DbxStatus {
         running: port.is_some(),
-        installed: dsh_installed(),
-        url: dsh_url(port),
+        installed: dbx_installed(),
+        url: dbx_url(port),
     }
 }
 
 #[cfg(desktop)]
 #[tauri::command]
-fn start_dsh(app: AppHandle, state: State<'_, DshState>) -> Result<DshStatus, String> {
-    let port = discover_dsh();
+fn start_dbx(app: AppHandle, state: State<'_, DbxState>) -> Result<DbxStatus, String> {
+    let port = discover_dbx();
     if let Some(p) = port {
-        return Ok(DshStatus {
+        return Ok(DbxStatus {
             running: true,
-            installed: dsh_installed(),
-            url: dsh_url(Some(p)),
+            installed: dbx_installed(),
+            url: dbx_url(Some(p)),
         });
     }
     ensure_started(&app, &state)?;
-    let p = discover_dsh();
-    Ok(DshStatus {
+    let p = discover_dbx();
+    Ok(DbxStatus {
         running: p.is_some(),
-        installed: dsh_installed(),
-        url: dsh_url(p),
+        installed: dbx_installed(),
+        url: dbx_url(p),
     })
 }
 
 /// Whether this build targets a mobile platform (Android/iOS). The frontend
-/// uses it to pick between auto-starting local dsh (desktop) and asking for a
+/// uses it to pick between auto-starting local dbx (desktop) and asking for a
 /// remote host:port (mobile).
 #[tauri::command]
 fn is_mobile() -> bool {
@@ -650,15 +582,15 @@ fn sanitize_host(raw: &str) -> Result<String, String> {
     Ok(host.to_string())
 }
 
-/// Probe `http://host:port` and report whether it serves dsh. `running` is
-/// false when the host is unreachable or does not look like dsh; the URL is
+/// Probe `http://host:port` and report whether it serves dbx. `running` is
+/// false when the host is unreachable or does not respond to HTTP; the URL is
 /// returned either way so the caller can still open it manually.
 #[tauri::command]
-fn connect_remote(host: String, port: u16) -> Result<DshStatus, String> {
+fn connect_remote(host: String, port: u16) -> Result<DbxStatus, String> {
     let host = sanitize_host(&host)?;
     let url = format!("http://{host}:{port}");
-    let running = is_dsh_server(&host, port, REMOTE_PROBE_TIMEOUT_MS);
-    Ok(DshStatus {
+    let running = is_dbx_server(&host, port, REMOTE_PROBE_TIMEOUT_MS);
+    Ok(DbxStatus {
         running,
         installed: true,
         url,
@@ -669,7 +601,7 @@ fn connect_remote(host: String, port: u16) -> Result<DshStatus, String> {
 pub fn run() {
     let builder = tauri::Builder::default();
 
-    // The single-instance / window-state plugins and the dsh process
+    // The single-instance / window-state plugins and the dbx process
     // management below are desktop-only; on mobile the app is a plain
     // remote-URL launcher.
     #[cfg(desktop)]
@@ -682,7 +614,7 @@ pub fn run() {
                 let _ = win.set_focus();
             }
         }))
-        .manage(DshState {
+        .manage(DbxState {
             spawned: Mutex::new(None),
         });
 
@@ -690,7 +622,7 @@ pub fn run() {
         .invoke_handler({
             #[cfg(desktop)]
             {
-                tauri::generate_handler![check_dsh, start_dsh, connect_remote, is_mobile]
+                tauri::generate_handler![check_dbx, start_dbx, connect_remote, is_mobile]
             }
             #[cfg(mobile)]
             {
@@ -702,9 +634,9 @@ pub fn run() {
             {
                 let handle = app.handle().clone();
                 std::thread::spawn(move || {
-                    let state = handle.state::<DshState>();
+                    let state = handle.state::<DbxState>();
                     if let Err(e) = ensure_started(&handle, &state) {
-                        eprintln!("dsh auto-start failed: {e}");
+                        eprintln!("dbx auto-start failed: {e}");
                     }
                 });
             }
@@ -718,15 +650,15 @@ pub fn run() {
     app.run(|handle, event| {
         #[cfg(desktop)]
         if let tauri::RunEvent::Exit = event {
-            // Only stop dsh when this app spawned it; a user-started instance
+            // Only stop dbx when this app spawned it; a user-started instance
             // keeps running after the app closes.
             let spawned_pid = {
-                let state = handle.state::<DshState>();
+                let state = handle.state::<DbxState>();
                 let guard = state.spawned.lock().unwrap();
                 *guard
             };
             if let Some(pid) = spawned_pid {
-                kill_dsh_tree(pid);
+                kill_dbx_tree(pid);
             }
         }
         #[cfg(mobile)]
@@ -742,8 +674,8 @@ mod tests {
 
     #[test]
     fn parse_port_basic() {
-        assert_eq!(parse_port("127.0.0.1:3080"), Some(3080));
-        assert_eq!(parse_port("[::1]:3088"), Some(3088));
+        assert_eq!(parse_port("127.0.0.1:4224"), Some(4224));
+        assert_eq!(parse_port("[::1]:4232"), Some(4232));
         assert_eq!(parse_port("*:8090"), Some(8090));
         assert_eq!(parse_port("no-port"), None);
     }
@@ -761,12 +693,12 @@ mod tests {
 Active Connections
 
   Proto  Local Address          Foreign Address        State           PID
-  TCP    127.0.0.1:3080         0.0.0.0:0              LISTENING       38316
-  TCP    127.0.0.1:3088         0.0.0.0:0              LISTENING       38316
+  TCP    127.0.0.1:4224         0.0.0.0:0              LISTENING       38316
+  TCP    127.0.0.1:4232         0.0.0.0:0              LISTENING       38316
   TCP    0.0.0.0:135            0.0.0.0:0              LISTENING       1204
   UDP    0.0.0.0:1900           *:*                                   544
 ";
-        assert_eq!(ports_from_netstat(sample, 38316), vec![3080, 3088]);
+        assert_eq!(ports_from_netstat(sample, 38316), vec![4224, 4232]);
         assert_eq!(ports_from_netstat(sample, 1204), vec![135]);
     }
 
@@ -774,12 +706,12 @@ Active Connections
     fn proc_tcp_linux_parse() {
         let sample = "\
   sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode
-   0: 0100007F:0C08 00000000:0000 0A 00000000:00000000 000:00000 00000000     0        0 12345 1 0000000000000000 100 0 0 10 0
-   1: 0100007F:0C10 00000000:0000 0A 00000000:00000000 000:00000 00000000     0        0 12346 1 0000000000000000 100 0 0 10 0
+   0: 0100007F:1080 00000000:0000 0A 00000000:00000000 000:00000 00000000     0        0 12345 1 0000000000000000 100 0 0 10 0
+   1: 0100007F:1088 00000000:0000 0A 00000000:00000000 000:00000 00000000     0        0 12346 1 0000000000000000 100 0 0 10 0
    2: 0100007F:D204 00000000:0000 01 00000000:00000000 000:00000 00000000     0        0 12347 1 0000000000000000 100 0 0 10 0
 ";
-        assert_eq!(ports_from_proc_tcp(sample, &[12345]), vec![3080]);
-        assert_eq!(ports_from_proc_tcp(sample, &[12346]), vec![3088]);
+        assert_eq!(ports_from_proc_tcp(sample, &[12345]), vec![4224]);
+        assert_eq!(ports_from_proc_tcp(sample, &[12346]), vec![4232]);
         // non-LISTEN row (state 01) must be ignored
         assert_eq!(ports_from_proc_tcp(sample, &[12347]), Vec::<u16>::new());
     }
@@ -788,11 +720,11 @@ Active Connections
     fn lsof_macos_parse() {
         let sample = "\
 COMMAND PID   USER  FD   TYPE DEVICE SIZE/OFF NODE NAME
-node    38316 cc    30u  IPv4 0x1   0t0     TCP 127.0.0.1:3080 (LISTEN)
-node    38316 cc    31u  IPv6 0x2   0t0     TCP *:3088 (LISTEN)
+node    38316 cc    30u  IPv4 0x1   0t0     TCP 127.0.0.1:4224 (LISTEN)
+node    38316 cc    31u  IPv6 0x2   0t0     TCP *:4232 (LISTEN)
 node    999   cc    10u  IPv4 0x3   0t0     TCP 127.0.0.1:8443 (LISTEN)
 ";
-        assert_eq!(ports_from_lsof(sample, 38316), vec![3080, 3088]);
+        assert_eq!(ports_from_lsof(sample, 38316), vec![4224, 4232]);
         assert_eq!(ports_from_lsof(sample, 999), vec![8443]);
     }
 
@@ -804,23 +736,22 @@ node    999   cc    10u  IPv4 0x3   0t0     TCP 127.0.0.1:8443 (LISTEN)
         assert!(sanitize_host("   ").is_err());
         // scheme / path / port injection attempts are rejected
         assert!(sanitize_host("http://192.168.1.10").is_err());
-        assert!(sanitize_host("192.168.1.10:3080").is_err());
+        assert!(sanitize_host("192.168.1.10:4224").is_err());
         assert!(sanitize_host("192.168.1.10/x").is_err());
-        assert!(sanitize_host(r"192.168.1.10\dsh").is_err());
+        assert!(sanitize_host(r"192.168.1.10\dbx").is_err());
         assert!(sanitize_host("user@host").is_err());
     }
 
     #[test]
-    fn dsh_token_matches() {
-        assert!(is_dsh_token("dsh"));
-        assert!(is_dsh_token("/usr/local/bin/dsh"));
-        assert!(is_dsh_token("/home/me/.cargo/bin/dsh"));
-        assert!(is_dsh_token("dsh.exe"));
-        assert!(is_dsh_token("C:\\tools\\dsh\\dsh.exe"));
-        assert!(is_dsh_token("/usr/lib/node_modules/@deepseek-ai/dsh/lib/bin.js"));
-        assert!(!is_dsh_token("node"));
-        assert!(!is_dsh_token("/usr/bin/bash"));
-        assert!(!is_dsh_token("--webview-exe-name=msedgewebview2.exe"));
-        assert!(!is_dsh_token("/opt/dashboard/bin/web"));
+    fn dbx_token_matches() {
+        assert!(is_dbx_token("dbx"));
+        assert!(is_dbx_token("/usr/local/bin/dbx"));
+        assert!(is_dbx_token("/home/me/.local/bin/dbx"));
+        assert!(is_dbx_token("dbx.exe"));
+        assert!(is_dbx_token("C:\\tools\\dbx\\dbx.exe"));
+        assert!(!is_dbx_token("node"));
+        assert!(!is_dbx_token("/usr/bin/bash"));
+        assert!(!is_dbx_token("--webview-exe-name=msedgewebview2.exe"));
+        assert!(!is_dbx_token("/opt/dashboard/bin/web"));
     }
 }

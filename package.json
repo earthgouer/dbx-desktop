@@ -1,8 +1,8 @@
 {
-  "name": "dsh-desktop",
+  "name": "dbx-desktop",
   "version": "0.1.0",
   "private": true,
-  "description": "DSH web launcher desktop app",
+  "description": "DBX desktop launcher",
   "scripts": {
     "tauri": "tauri"
   },

@@ -1,12 +1,12 @@
 [package]
-name = "dsh-desktop"
+name = "dbx-desktop"
 version = "0.1.0"
-description = "DSH web launcher desktop app"
+description = "DBX desktop launcher"
 authors = ["you"]
 edition = "2021"
 
 [lib]
-name = "dsh_desktop_lib"
+name = "dbx_desktop_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

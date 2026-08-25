@@ -843,7 +843,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "dsh-desktop"
+name = "dbx-desktop"
 version = "0.1.0"
 dependencies = [
  "libc",

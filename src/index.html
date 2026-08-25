@@ -3,23 +3,25 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>DSH Desktop</title>
+    <title>DBX Desktop</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <main class="app">
       <div class="card">
-        <div class="logo">dsh</div>
-        <h1 id="title">DSH Desktop</h1>
+        <div class="logo" aria-hidden="true">&gt;_</div>
+        <p class="eyebrow">LOCAL COMMAND RUNNER</p>
+        <h1 id="title">DBX Desktop</h1>
+        <p class="subtitle">本机服务 · 端口 4224</p>
 
-        <!-- 桌面端：自动检测 / 启动本机 dsh -->
+        <!-- 桌面端：自动检测 / 启动本机 dbx -->
         <section id="auto-flow">
-          <p id="status" class="status">正在检测 dsh 服务…</p>
+          <p id="status" class="status">正在检测 dbx 服务…</p>
           <div id="spinner" class="spinner" aria-label="loading"></div>
           <p id="url" class="url" hidden></p>
         </section>
 
-        <!-- 移动端：手动输入远端 dsh 地址 -->
+        <!-- 移动端：手动输入远端 dbx 地址 -->
         <section id="remote-flow" hidden>
           <form id="connect-form" autocomplete="off">
             <label class="field">
@@ -30,7 +32,7 @@
             <label class="field field-port">
               <span>端口</span>
               <input id="port-input" name="port" type="number" inputmode="numeric"
-                     min="1" max="65535" value="3080" required />
+                     min="1" max="65535" value="4224" required />
             </label>
             <button id="connect-btn" type="submit" class="btn primary">连接</button>
           </form>

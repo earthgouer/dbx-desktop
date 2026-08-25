@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "dsh-desktop",
+  "productName": "dbx-desktop",
   "version": "0.1.0",
-  "identifier": "com.dsh.desktop",
+  "identifier": "com.dbx.desktop",
   "build": {
     "beforeDevCommand": "",
     "beforeBuildCommand": "",
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "DSH Desktop",
+        "title": "DBX Desktop",
         "width": 800,
         "height": 600,
         "minWidth": 800,

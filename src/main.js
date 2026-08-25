@@ -17,7 +17,7 @@ const connectBtn = document.getElementById("connect-btn");
 const remoteStatusEl = document.getElementById("remote-status");
 const remoteSpinnerEl = document.getElementById("remote-spinner");
 
-const STORAGE_KEY = "dsh.remote";
+const STORAGE_KEY = "dbx.remote";
 
 let lastStatus = null;
 let connecting = false;
@@ -35,11 +35,11 @@ function showError(text) {
   remoteSpinnerEl.hidden = true;
 }
 
-/* ---------- 桌面端：自动检测 / 拉起本机 dsh ---------- */
+/* ---------- 桌面端：自动检测 / 拉起本机 dbx ---------- */
 
 async function probe() {
   try {
-    lastStatus = await invoke("check_dsh");
+    lastStatus = await invoke("check_dbx");
     return lastStatus.running === true;
   } catch {
     return false;
@@ -56,7 +56,7 @@ async function waitReady(timeoutMs) {
 }
 
 function open(u) {
-  setStatus("dsh 已就绪，正在打开界面…", true);
+  setStatus("dbx 已就绪，正在打开界面…", true);
   urlEl.hidden = false;
   urlEl.textContent = "正在打开：" + u;
   setTimeout(() => {
@@ -65,12 +65,12 @@ function open(u) {
 }
 
 async function bootDesktop() {
-  setStatus("正在检测 dsh…", true);
+  setStatus("正在检测 dbx…", true);
   errorBox.hidden = true;
 
   let status;
   try {
-    status = await invoke("check_dsh");
+    status = await invoke("check_dbx");
   } catch (e) {
     showError("检测失败：" + (e && e.message ? e.message : e));
     return;
@@ -82,13 +82,13 @@ async function bootDesktop() {
   }
 
   if (!status.installed) {
-    showError("本机未检测到 dsh 命令。请先安装 dsh：npm install -g @deepseek-ai/dsh，安装完成后点击重试。");
+    showError("本机未检测到 dbx 命令。请确认 dbx 已加入系统 PATH，安装完成后点击重试。");
     return;
   }
 
-  setStatus("正在启动 dsh…", true);
+  setStatus("正在启动 dbx（端口 4224）…", true);
   try {
-    await invoke("start_dsh");
+    await invoke("start_dbx");
   } catch (e) {
     const msg = typeof e === "string" ? e : e && e.message ? e.message : String(e);
     showError(msg);
@@ -98,11 +98,11 @@ async function bootDesktop() {
   if (await waitReady(90000)) {
     open(lastStatus.url);
   } else {
-    showError("dsh 启动超时，请检查日志后重试。");
+    showError("dbx 启动超时，请检查日志后重试。");
   }
 }
 
-/* ---------- 移动端：连接局域网内已运行的 dsh ---------- */
+/* ---------- 移动端：连接局域网内已运行的 dbx ---------- */
 
 function loadSavedRemote() {
   try {
@@ -145,7 +145,7 @@ function openRemote(u) {
   connectBtn.disabled = true;
   remoteSpinnerEl.hidden = false;
   remoteStatusEl.hidden = false;
-  remoteStatusEl.textContent = "dsh 已就绪，正在打开界面…";
+  remoteStatusEl.textContent = "dbx 已就绪，正在打开界面…";
   setTimeout(() => {
     window.location.replace(u);
   }, 300);
@@ -161,7 +161,7 @@ async function connectRemote(host, port) {
       openRemote(st.url);
     } else {
       showError(
-        `${host}:${port} 未检测到 dsh 服务。请确认电脑上的 dsh web 已启动、手机与电脑在同一网络，且地址和端口填写正确。`
+        `${host}:${port} 未检测到 dbx 服务。请确认电脑上的 dbx 已启动、手机与电脑在同一网络，且地址和端口填写正确。`
       );
       setConnecting(false);
     }
@@ -173,7 +173,7 @@ async function connectRemote(host, port) {
 
 function bootMobile() {
   mobileMode = true;
-  titleEl.textContent = "DSH";
+  titleEl.textContent = "DBX";
   autoFlowEl.hidden = true;
   errorBox.hidden = true;
   remoteFlowEl.hidden = false;
