@@ -1,1 +1,5 @@
-(build.log unavailable: [Errno 2] No such file or directory: 'build.log')
+=== build.log head (first 1 lines) ===
+(workspace build.log missing; content from /tmp/ci.log)
+
+=== build.log tail (last 1 of 1 lines) ===
+(workspace build.log missing; content from /tmp/ci.log)
