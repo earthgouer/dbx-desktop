@@ -8,12 +8,12 @@ on:
     branches: [master]
 
 permissions:
-  contents: read
+  # surface_error.py writes build.log to the ci-logs branch via the Contents
+  # API when the build fails; contents: write also covers artifact reads.
+  contents: write
   # upload-artifact@v4 needs actions: write; declaring `permissions:` at the
   # workflow level otherwise strips every permission not listed here.
   actions: write
-  # surface_error.py posts the build log to an issue when the build fails.
-  issues: write
 
 env:
   CARGO_TERM_COLOR: always
