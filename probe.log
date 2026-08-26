@@ -1,0 +1,36 @@
+=== probe: Wed Aug 26 11:50:17 UTC 2026 ===
+SHELL=  GITHUB_WORKSPACE=/__w/dbx-desktop/dbx-desktop
+/__w/dbx-desktop/dbx-desktop
+uid=0(root) gid=0(root) groups=0(root)
+--- touch build.log in cwd ---
+TOUCH build.log OK
+-rw-r--r-- 1 root root 0 Aug 26 11:50 build.log
+--- touch /tmp/ci.log ---
+/tmp OK
+--- workspace dir perms ---
+drwxr-xr-x 3 1001 1001 4096 Aug 26 11:48 /__w/dbx-desktop
+drwxr-xr-x 9 1001 1001 4096 Aug 26 11:50 /__w/dbx-desktop/dbx-desktop
+--- mounts ---
+overlay on / type overlay (rw,relatime,lowerdir=/var/lib/docker/overlay2/l/P7CTD5RMEAMH7Q44OJ6MB2XBQ4:/var/lib/docker/overlay2/l/JIHES3OAKAPFIQBLEL2SGHUYZK,upperdir=/var/lib/docker/overlay2/dcc0fe54605073a4e4dfd33d8bd5425edfd0f3c7f0885fa515b0f8a24e91d3eb/diff,workdir=/var/lib/docker/overlay2/dcc0fe54605073a4e4dfd33d8bd5425edfd0f3c7f0885fa515b0f8a24e91d3eb/work,nouserxattr)
+/dev/root on /__w type ext4 (rw,relatime,discard,errors=remount-ro)
+/dev/root on /__w/_temp type ext4 (rw,relatime,discard,errors=remount-ro)
+/dev/root on /__w/_actions type ext4 (rw,relatime,discard,errors=remount-ro)
+--- df ---
+/dev/root       146G   61G   85G  42% /__w
+--- cwd listing ---
+total 80
+drwxr-xr-x 9 1001 1001  4096 Aug 26 11:50 .
+drwxr-xr-x 3 1001 1001  4096 Aug 26 11:48 ..
+drwxr-xr-x 8 root root  4096 Aug 26 11:49 .git
+drwxr-xr-x 4 root root  4096 Aug 26 11:49 .github
+drwxr-xr-x 3 root root  4096 Aug 26 11:49 .workbuddy
+-rw-r--r-- 1 root root  1081 Aug 26 11:49 LICENSE
+-rw-r--r-- 1 root root   945 Aug 26 11:49 README.en.md
+-rw-r--r-- 1 root root  1172 Aug 26 11:49 README.md
+-rw-r--r-- 1 root root 18838 Aug 26 11:49 app-icon.png
+drwxr-xr-x 2 root root  4096 Aug 26 11:49 doc
+drwxr-xr-x 5 root root  4096 Aug 26 11:50 node_modules
+-rw-r--r-- 1 root root  7509 Aug 26 11:49 package-lock.json
+-rw-r--r-- 1 root root   236 Aug 26 11:49 package.json
+drwxr-xr-x 2 root root  4096 Aug 26 11:49 src
+drwxr-xr-x 6 root root  4096 Aug 26 11:49 src-tauri
