@@ -1,4 +1,4 @@
-const { invoke } = window.__TAURI__.core;
+const { invoke } = window.__TAURI__;
 
 const titleEl = document.getElementById("title");
 const statusEl = document.getElementById("status");

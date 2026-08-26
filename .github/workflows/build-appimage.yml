@@ -6,15 +6,28 @@ on:
 permissions:
   contents: read
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
   build-appimage:
-    name: Build Linux AppImage
-    # ubuntu-20.04 is no longer a supported GitHub-hosted runner. Ubuntu 22.04
-    # is the oldest maintained runner that provides Tauri 2's WebKitGTK 4.1
-    # development package.
+    name: Build Linux AppImage (glibc 2.31)
     runs-on: ubuntu-22.04
+    # GitHub no longer offers an ubuntu-20.04 hosted runner, so we pin the
+    # Ubuntu 20.04 container instead. Ubuntu 20.04 ships glibc 2.31 and
+    # WebKitGTK 4.0 (libwebkit2gtk-4.0), which is exactly what 中国麒麟 V10
+    # (glibc 2.31, WebKitGTK 4.0) provides — building here yields a binary
+    # that runs on the target without GLIBC / WebKit version mismatches.
+    container:
+      image: ubuntu:20.04
 
     steps:
+      - name: Install base tools (root in container, no sudo)
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            git ca-certificates curl build-essential pkg-config
+
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
@@ -26,9 +39,8 @@ jobs:
 
       - name: Install Linux build dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev \
+          apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.0-dev \
             libappindicator3-dev \
             librsvg2-dev \
             patchelf

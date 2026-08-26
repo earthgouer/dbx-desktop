@@ -10,19 +10,20 @@ name = "dbx_desktop_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "2", features = [] }
+tauri-build = { version = "1", features = [] }
 
 [profile.release]
 strip = true
 
 [dependencies]
-tauri = { version = "2", features = [] }
+tauri = { version = "1", features = [] }
 serde = { version = "1", features = ["derive"] }
 
 # Desktop-only: process discovery/spawn and the plugins below do not apply to
 # the mobile builds (the mobile app is a plain remote-URL launcher).
 [target.'cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))'.dependencies]
-tauri-plugin-single-instance = "2"
-tauri-plugin-window-state = "2"
+tauri-plugin-single-instance = "0.1"
+tauri-plugin-window-state = "0.1"
 sysinfo = "0.30"
 libc = "0.2"
+dirs = "5"

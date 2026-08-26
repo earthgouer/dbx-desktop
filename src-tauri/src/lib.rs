@@ -2,45 +2,45 @@ use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpStream, ToSocketAddrs};
 use std::time::Duration;
 
-#[cfg(desktop)]
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 use std::fs::OpenOptions;
-#[cfg(desktop)]
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 use std::path::PathBuf;
-#[cfg(desktop)]
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 use std::process::{Command, Stdio};
-#[cfg(desktop)]
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 use std::sync::Mutex;
 
-#[cfg(all(desktop, windows))]
+#[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
 
-#[cfg(all(desktop, unix))]
+#[cfg(unix)]
 use std::os::unix::process::CommandExt;
 
 use serde::Serialize;
-#[cfg(desktop)]
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 use sysinfo::{ProcessRefreshKind, System, UpdateKind};
-#[cfg(desktop)]
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 use tauri::{AppHandle, Manager, State};
 
-#[cfg(desktop)]
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 const DBX_HOST: &str = "127.0.0.1";
-#[cfg(desktop)]
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 const DBX_PORT: u16 = 4224;
 
 /// How long a remote probe (mobile connect form) may take before we give up.
 const REMOTE_PROBE_TIMEOUT_MS: u64 = 3000;
 
-#[cfg(desktop)]
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 const INSTALL_HINT: &str =
     "本机未检测到 dbx 命令。请确认 dbx 已加入系统 PATH，安装完成后点击重试。";
 
-#[cfg(all(desktop, windows))]
+#[cfg(target_os = "windows")]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-#[cfg(all(desktop, windows))]
+#[cfg(target_os = "windows")]
 const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
 
-#[cfg(desktop)]
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 struct DbxState {
     /// PID of the dbx instance this app spawned (None when the app did not
     /// start dbx, i.e. a user-started instance is being used).
@@ -54,12 +54,12 @@ struct DbxStatus {
     url: String,
 }
 
-#[cfg(desktop)]
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 fn dbx_url(port: Option<u16>) -> String {
     format!("http://{DBX_HOST}:{}", port.unwrap_or(DBX_PORT))
 }
 
-#[cfg(desktop)]
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 fn dbx_in_dir(dir: &std::path::Path) -> Option<PathBuf> {
     let base = dir.join("dbx");
     if base.is_file() {
@@ -82,7 +82,7 @@ fn dbx_in_dir(dir: &std::path::Path) -> Option<PathBuf> {
 /// login shell's PATH, so we scan a set of common locations: npm/pnpm/bun
 /// global bins, cargo, node version managers (nvm/volta/asdf/fnm/mise), and
 /// the system bin dirs.
-#[cfg(all(desktop, not(windows)))]
+#[cfg(not(target_os = "windows"))]
 fn common_bin_dirs() -> Vec<PathBuf> {
     let mut dirs = vec![
         PathBuf::from("/usr/local/bin"),
@@ -116,7 +116,7 @@ fn common_bin_dirs() -> Vec<PathBuf> {
 /// how dbx was installed. Searches PATH first, then a set of common install
 /// locations (GUI-launched apps on macOS/Linux do not always inherit the
 /// login shell's PATH).
-#[cfg(desktop)]
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 fn find_dbx() -> Option<PathBuf> {
     if let Ok(path) = std::env::var("PATH") {
         for dir in std::env::split_paths(&path) {
@@ -136,7 +136,7 @@ fn find_dbx() -> Option<PathBuf> {
     None
 }
 
-#[cfg(desktop)]
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 fn dbx_installed() -> bool {
     find_dbx().is_some()
 }
@@ -144,7 +144,7 @@ fn dbx_installed() -> bool {
 /// True when a (lowercased) command-line token looks like the `dbx`
 /// executable: the bare `dbx` or a `dbx`/`dbx.exe` binary invoked through its
 /// absolute path.
-#[cfg(desktop)]
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 fn is_dbx_token(token: &str) -> bool {
     if token == "dbx" {
         return true;
@@ -170,7 +170,7 @@ fn is_dbx_token(token: &str) -> bool {
 }
 
 /// Enumerate processes whose command line looks like a running `dbx` instance.
-#[cfg(desktop)]
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 fn find_dbx_processes() -> Vec<u32> {
     let mut sys = System::new();
     sys.refresh_processes_specifics(ProcessRefreshKind::new().with_cmd(UpdateKind::Always));
@@ -185,13 +185,13 @@ fn find_dbx_processes() -> Vec<u32> {
     pids
 }
 
-#[cfg(desktop)]
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 fn parse_port(addr: &str) -> Option<u16> {
     addr.rsplit(':').next()?.parse::<u16>().ok()
 }
 
 /// /proc/net/tcp uses hex-encoded ports (e.g. `0100007F:1080` -> 4224).
-#[cfg(desktop)]
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 #[allow(dead_code)]
 fn parse_hex_port(addr: &str) -> Option<u16> {
     u16::from_str_radix(addr.rsplit(':').next()?, 16).ok()
@@ -199,7 +199,7 @@ fn parse_hex_port(addr: &str) -> Option<u16> {
 
 /// Parse `netstat -ano` output (Windows) and return the listening TCP ports
 /// owned by `pid`.
-#[cfg(desktop)]
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 fn ports_from_netstat(out: &str, pid: u32) -> Vec<u16> {
     let mut ports = Vec::new();
     for line in out.lines() {
@@ -219,7 +219,7 @@ fn ports_from_netstat(out: &str, pid: u32) -> Vec<u16> {
 
 /// Parse `/proc/<pid>/net/tcp` (or tcp6) output (Linux). `inodes` is the set
 /// of socket inodes held by the process's fds; only those rows are returned.
-#[cfg(desktop)]
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 #[allow(dead_code)]
 fn ports_from_proc_tcp(tcp: &str, inodes: &[u64]) -> Vec<u16> {
     let mut ports = Vec::new();
@@ -240,7 +240,7 @@ fn ports_from_proc_tcp(tcp: &str, inodes: &[u64]) -> Vec<u16> {
 
 /// Parse `lsof -nP -iTCP -sTCP:LISTEN -a -p <pid>` output (macOS) and return
 /// the listening TCP ports owned by `pid`.
-#[cfg(desktop)]
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 #[allow(dead_code)]
 fn ports_from_lsof(out: &str, pid: u32) -> Vec<u16> {
     let mut ports = Vec::new();
@@ -264,7 +264,7 @@ fn ports_from_lsof(out: &str, pid: u32) -> Vec<u16> {
 }
 
 /// Listening TCP ports owned by `pid`, discovered per platform.
-#[cfg(desktop)]
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 fn listening_ports_of(pid: u32) -> Vec<u16> {
     #[cfg(windows)]
     {
@@ -398,16 +398,18 @@ fn is_dbx_server(host: &str, port: u16, timeout_ms: u64) -> bool {
 }
 
 /// dbx always runs on the configured fixed port.
-#[cfg(desktop)]
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 fn discover_dbx() -> Option<u16> {
     is_dbx_server(DBX_HOST, DBX_PORT, 800).then_some(DBX_PORT)
 }
 
-#[cfg(desktop)]
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 fn spawn_dbx(app: &AppHandle) -> Result<u32, String> {
     let dbx_path = find_dbx().ok_or_else(|| INSTALL_HINT.to_string())?;
 
-    let log_dir = app.path().app_log_dir().map_err(|e| e.to_string())?;
+    let log_dir = dirs::cache_dir()
+        .ok_or_else(|| "无法解析系统缓存目录".to_string())?
+        .join("dbx-desktop");
     std::fs::create_dir_all(&log_dir).map_err(|e| e.to_string())?;
 
     let log_path = log_dir.join("dbx.log");
@@ -472,7 +474,7 @@ fn spawn_dbx(app: &AppHandle) -> Result<u32, String> {
 
 /// Kill the dbx instance this app spawned (the whole process tree). Used on
 /// app exit; only called when the app started dbx itself.
-#[cfg(desktop)]
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 fn kill_dbx_tree(pid: u32) {
     #[cfg(windows)]
     {
@@ -500,7 +502,7 @@ fn kill_dbx_tree(pid: u32) {
     }
 }
 
-#[cfg(desktop)]
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 fn ensure_started(app: &AppHandle, state: &DbxState) -> Result<Option<u32>, String> {
     if discover_dbx().is_some() {
         return Ok(None);
@@ -522,7 +524,7 @@ fn ensure_started(app: &AppHandle, state: &DbxState) -> Result<Option<u32>, Stri
     Ok(Some(pid))
 }
 
-#[cfg(desktop)]
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 #[tauri::command]
 fn check_dbx() -> DbxStatus {
     let port = discover_dbx();
@@ -533,7 +535,7 @@ fn check_dbx() -> DbxStatus {
     }
 }
 
-#[cfg(desktop)]
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 #[tauri::command]
 fn start_dbx(app: AppHandle, state: State<'_, DbxState>) -> Result<DbxStatus, String> {
     let port = discover_dbx();
@@ -597,18 +599,17 @@ fn connect_remote(host: String, port: u16) -> Result<DbxStatus, String> {
     })
 }
 
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let builder = tauri::Builder::default();
 
     // The single-instance / window-state plugins and the dbx process
     // management below are desktop-only; on mobile the app is a plain
     // remote-URL launcher.
-    #[cfg(desktop)]
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
     let builder = builder
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            if let Some(win) = app.get_webview_window("main") {
+            if let Some(win) = app.get_window("main") {
                 let _ = win.unminimize();
                 let _ = win.show();
                 let _ = win.set_focus();
@@ -620,17 +621,17 @@ pub fn run() {
 
     let app = builder
         .invoke_handler({
-            #[cfg(desktop)]
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             {
                 tauri::generate_handler![check_dbx, start_dbx, connect_remote, is_mobile]
             }
-            #[cfg(mobile)]
+            #[cfg(any(target_os = "android", target_os = "ios"))]
             {
                 tauri::generate_handler![connect_remote, is_mobile]
             }
         })
         .setup(|app| {
-            #[cfg(desktop)]
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             {
                 let handle = app.handle().clone();
                 std::thread::spawn(move || {
@@ -640,7 +641,7 @@ pub fn run() {
                     }
                 });
             }
-            #[cfg(mobile)]
+            #[cfg(any(target_os = "android", target_os = "ios"))]
             let _ = app;
             Ok(())
         })
@@ -648,7 +649,7 @@ pub fn run() {
         .expect("error while building tauri application");
 
     app.run(|handle, event| {
-        #[cfg(desktop)]
+        #[cfg(not(any(target_os = "android", target_os = "ios")))]
         if let tauri::RunEvent::Exit = event {
             // Only stop dbx when this app spawned it; a user-started instance
             // keeps running after the app closes.
@@ -661,14 +662,14 @@ pub fn run() {
                 kill_dbx_tree(pid);
             }
         }
-        #[cfg(mobile)]
+        #[cfg(any(target_os = "android", target_os = "ios"))]
         {
             let _ = (handle, event);
         }
     });
 }
 
-#[cfg(all(test, desktop))]
+#[cfg(test)]
 mod tests {
     use super::*;
 

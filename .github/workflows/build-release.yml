@@ -17,12 +17,29 @@ jobs:
   build:
     name: Build (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    # Linux builds run inside Ubuntu 20.04 so the produced binaries link
+    # against glibc 2.31 / WebKitGTK 4.0, matching 中国麒麟 V10. GitHub no
+    # longer provides a ubuntu-20.04 hosted runner, so we pin the container.
+    container: ${{ matrix.container }}
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, macos-latest, ubuntu-22.04, ubuntu-22.04-arm]
+        include:
+          - os: windows-latest
+          - os: macos-latest
+          - os: ubuntu-22.04
+            container: ubuntu:20.04
+          - os: ubuntu-22.04-arm
+            container: ubuntu:20.04
 
     steps:
+      - name: Install base tools (container only)
+        if: runner.os == 'Linux'
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            git ca-certificates curl build-essential pkg-config
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -56,8 +73,9 @@ jobs:
       - name: Install Linux dependencies
         if: runner.os == 'Linux'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
 
       - name: Add macOS cross-compile targets
         if: runner.os == 'macOS'
