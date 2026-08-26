@@ -5,6 +5,9 @@ on:
 
 permissions:
   contents: read
+  # upload-artifact@v4 needs actions: write; declaring `permissions:` at the
+  # workflow level otherwise strips every permission not listed here.
+  actions: write
 
 env:
   CARGO_TERM_COLOR: always

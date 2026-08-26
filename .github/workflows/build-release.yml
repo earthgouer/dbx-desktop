@@ -351,6 +351,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      # download-artifact@v4 needs actions: read; the `permissions:` block
+      # otherwise strips it.
+      actions: read
     steps:
       - uses: actions/checkout@v4
         with:
