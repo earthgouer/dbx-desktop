@@ -560,7 +560,7 @@ fn start_dbx(app: AppHandle, state: State<'_, DbxState>) -> Result<DbxStatus, St
 /// remote host:port (mobile).
 #[tauri::command]
 fn is_mobile() -> bool {
-    cfg!(mobile)
+    cfg!(any(target_os = "android", target_os = "ios"))
 }
 
 /// Validate a user-supplied hostname/IP. Only bare hosts are accepted; the
@@ -608,13 +608,6 @@ pub fn run() {
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     let builder = builder
         .plugin(tauri_plugin_window_state::Builder::default().build())
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            if let Some(win) = app.get_window("main") {
-                let _ = win.unminimize();
-                let _ = win.show();
-                let _ = win.set_focus();
-            }
-        }))
         .manage(DbxState {
             spawned: Mutex::new(None),
         });

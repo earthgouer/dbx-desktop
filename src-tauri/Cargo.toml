@@ -22,7 +22,6 @@ serde = { version = "1", features = ["derive"] }
 # Desktop-only: process discovery/spawn and the plugins below do not apply to
 # the mobile builds (the mobile app is a plain remote-URL launcher).
 [target.'cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))'.dependencies]
-tauri-plugin-single-instance = "0.1"
 tauri-plugin-window-state = "0.1"
 sysinfo = "0.30"
 libc = "0.2"
