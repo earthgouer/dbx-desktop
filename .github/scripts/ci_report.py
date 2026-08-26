@@ -101,9 +101,16 @@ if STATUS == "ok":
 else:
     try:
         with open("build.log", "r", errors="replace") as f:
-            lines = f.read().splitlines()
-        tail = lines[-150:]
-        content = ("=== build.log tail (last %d lines) ===\n" % len(tail)) + "\n".join(tail)
+            raw = f.read()
+        # Push enough context: first 30 lines (headers/versions) + last 300.
+        lines = raw.splitlines()
+        head = lines[:30]
+        tail = lines[-300:]
+        body = ["=== build.log head (first %d lines) ===" % len(head)] + head
+        body += ["", "=== build.log tail (last %d of %d lines) ===" % (len(tail), len(lines))] + tail
+        content = "\n".join(body)
+        if len(content) > 60000:
+            content = content[:60000] + "\n...[truncated]..."
     except Exception as e:  # noqa: BLE001
         content = f"(build.log unavailable: {e})"
     put_file("build.log", content.encode(), "ci: build log (auto)")
