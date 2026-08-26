@@ -12,6 +12,8 @@ permissions:
   # upload-artifact@v4 needs actions: write; declaring `permissions:` at the
   # workflow level otherwise strips every permission not listed here.
   actions: write
+  # surface_error.py posts the build log to an issue when the build fails.
+  issues: write
 
 env:
   CARGO_TERM_COLOR: always
@@ -38,7 +40,7 @@ jobs:
         run: |
           apt-get update
           apt-get install -y --no-install-recommends \
-            git ca-certificates curl build-essential pkg-config
+            git ca-certificates curl build-essential pkg-config python3
 
       - uses: actions/checkout@v4
 
@@ -69,7 +71,15 @@ jobs:
         run: npm ci
 
       - name: Build AppImage
-        run: npm run tauri build -- --target x86_64-unknown-linux-gnu --bundles appimage
+        run: |
+          set -o pipefail
+          npm run tauri build -- --target x86_64-unknown-linux-gnu --bundles appimage 2>&1 | tee build.log
+
+      - name: Surface build error
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/surface_error.py
 
       - name: Upload AppImage
         uses: actions/upload-artifact@v4
