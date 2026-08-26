@@ -200,6 +200,7 @@ fn parse_hex_port(addr: &str) -> Option<u16> {
 /// Parse `netstat -ano` output (Windows) and return the listening TCP ports
 /// owned by `pid`.
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
+#[allow(dead_code)]
 fn ports_from_netstat(out: &str, pid: u32) -> Vec<u16> {
     let mut ports = Vec::new();
     for line in out.lines() {
@@ -265,6 +266,7 @@ fn ports_from_lsof(out: &str, pid: u32) -> Vec<u16> {
 
 /// Listening TCP ports owned by `pid`, discovered per platform.
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
+#[allow(dead_code)]
 fn listening_ports_of(pid: u32) -> Vec<u16> {
     #[cfg(windows)]
     {
@@ -404,7 +406,7 @@ fn discover_dbx() -> Option<u16> {
 }
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
-fn spawn_dbx(app: &AppHandle) -> Result<u32, String> {
+fn spawn_dbx(_app: &AppHandle) -> Result<u32, String> {
     let dbx_path = find_dbx().ok_or_else(|| INSTALL_HINT.to_string())?;
 
     let log_dir = dirs::cache_dir()

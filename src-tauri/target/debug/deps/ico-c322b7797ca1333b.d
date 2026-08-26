@@ -1,0 +1,12 @@
+/Users/fangwenqi/workspace/dbx-desktop/src-tauri/target/debug/deps/ico-c322b7797ca1333b.d: /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ico-0.4.0/src/lib.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ico-0.4.0/src/macros.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ico-0.4.0/src/bmpdepth.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ico-0.4.0/src/icondir.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ico-0.4.0/src/image.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ico-0.4.0/src/restype.rs
+
+/Users/fangwenqi/workspace/dbx-desktop/src-tauri/target/debug/deps/libico-c322b7797ca1333b.rlib: /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ico-0.4.0/src/lib.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ico-0.4.0/src/macros.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ico-0.4.0/src/bmpdepth.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ico-0.4.0/src/icondir.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ico-0.4.0/src/image.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ico-0.4.0/src/restype.rs
+
+/Users/fangwenqi/workspace/dbx-desktop/src-tauri/target/debug/deps/libico-c322b7797ca1333b.rmeta: /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ico-0.4.0/src/lib.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ico-0.4.0/src/macros.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ico-0.4.0/src/bmpdepth.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ico-0.4.0/src/icondir.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ico-0.4.0/src/image.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ico-0.4.0/src/restype.rs
+
+/Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ico-0.4.0/src/lib.rs:
+/Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ico-0.4.0/src/macros.rs:
+/Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ico-0.4.0/src/bmpdepth.rs:
+/Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ico-0.4.0/src/icondir.rs:
+/Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ico-0.4.0/src/image.rs:
+/Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ico-0.4.0/src/restype.rs:

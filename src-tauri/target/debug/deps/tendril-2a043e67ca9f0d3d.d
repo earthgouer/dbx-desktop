@@ -1,0 +1,11 @@
+/Users/fangwenqi/workspace/dbx-desktop/src-tauri/target/debug/deps/tendril-2a043e67ca9f0d3d.d: /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tendril-0.4.3/src/lib.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tendril-0.4.3/src/fmt.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tendril-0.4.3/src/stream.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tendril-0.4.3/src/buf32.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tendril-0.4.3/src/tendril.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tendril-0.4.3/src/utf8_decode.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tendril-0.4.3/src/util.rs
+
+/Users/fangwenqi/workspace/dbx-desktop/src-tauri/target/debug/deps/libtendril-2a043e67ca9f0d3d.rmeta: /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tendril-0.4.3/src/lib.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tendril-0.4.3/src/fmt.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tendril-0.4.3/src/stream.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tendril-0.4.3/src/buf32.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tendril-0.4.3/src/tendril.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tendril-0.4.3/src/utf8_decode.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tendril-0.4.3/src/util.rs
+
+/Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tendril-0.4.3/src/lib.rs:
+/Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tendril-0.4.3/src/fmt.rs:
+/Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tendril-0.4.3/src/stream.rs:
+/Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tendril-0.4.3/src/buf32.rs:
+/Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tendril-0.4.3/src/tendril.rs:
+/Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tendril-0.4.3/src/utf8_decode.rs:
+/Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tendril-0.4.3/src/util.rs:

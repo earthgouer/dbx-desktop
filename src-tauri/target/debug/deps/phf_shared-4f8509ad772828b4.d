@@ -1,0 +1,7 @@
+/Users/fangwenqi/workspace/dbx-desktop/src-tauri/target/debug/deps/phf_shared-4f8509ad772828b4.d: /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/phf_shared-0.11.3/src/lib.rs
+
+/Users/fangwenqi/workspace/dbx-desktop/src-tauri/target/debug/deps/libphf_shared-4f8509ad772828b4.rlib: /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/phf_shared-0.11.3/src/lib.rs
+
+/Users/fangwenqi/workspace/dbx-desktop/src-tauri/target/debug/deps/libphf_shared-4f8509ad772828b4.rmeta: /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/phf_shared-0.11.3/src/lib.rs
+
+/Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/phf_shared-0.11.3/src/lib.rs:

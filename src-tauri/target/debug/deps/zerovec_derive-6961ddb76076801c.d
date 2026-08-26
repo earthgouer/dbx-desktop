@@ -1,0 +1,10 @@
+/Users/fangwenqi/workspace/dbx-desktop/src-tauri/target/debug/deps/zerovec_derive-6961ddb76076801c.d: /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zerovec-derive-0.11.4/src/lib.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zerovec-derive-0.11.4/src/make_ule.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zerovec-derive-0.11.4/src/make_varule.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zerovec-derive-0.11.4/src/ule.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zerovec-derive-0.11.4/src/utils.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zerovec-derive-0.11.4/src/varule.rs
+
+/Users/fangwenqi/workspace/dbx-desktop/src-tauri/target/debug/deps/libzerovec_derive-6961ddb76076801c.dylib: /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zerovec-derive-0.11.4/src/lib.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zerovec-derive-0.11.4/src/make_ule.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zerovec-derive-0.11.4/src/make_varule.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zerovec-derive-0.11.4/src/ule.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zerovec-derive-0.11.4/src/utils.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zerovec-derive-0.11.4/src/varule.rs
+
+/Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zerovec-derive-0.11.4/src/lib.rs:
+/Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zerovec-derive-0.11.4/src/make_ule.rs:
+/Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zerovec-derive-0.11.4/src/make_varule.rs:
+/Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zerovec-derive-0.11.4/src/ule.rs:
+/Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zerovec-derive-0.11.4/src/utils.rs:
+/Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zerovec-derive-0.11.4/src/varule.rs:

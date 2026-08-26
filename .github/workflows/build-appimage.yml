@@ -8,8 +8,8 @@ on:
     branches: [master]
 
 permissions:
-  # surface_error.py writes build.log to the ci-logs branch via the Contents
-  # API when the build fails; contents: write also covers artifact reads.
+  # ci_report.py writes build.log / success.log to the ci-logs branch via the
+  # Contents API; contents: write also covers artifact operations.
   contents: write
   # upload-artifact@v4 needs actions: write; declaring `permissions:` at the
   # workflow level otherwise strips every permission not listed here.
@@ -31,14 +31,27 @@ jobs:
     # WebKitGTK 4.0 (libwebkit2gtk-4.0), which is exactly what 中国麒麟 V10
     # (glibc 2.31, WebKitGTK 4.0) provides — building here yields a binary
     # that runs on the target without GLIBC / WebKit version mismatches.
+    #
+    # NOTE: Ubuntu 20.04 (focal) left standard support in 2025, so its packages
+    # may have moved to old-releases.ubuntu.com. The apt steps below fall back
+    # to old-releases automatically if archive.ubuntu.com fails.
     container:
       image: ubuntu:20.04
-    timeout-minutes: 90
+    timeout-minutes: 120
 
     steps:
       - name: Install base tools (root in container, no sudo)
         run: |
-          apt-get update
+          set -e
+          fix_sources() {
+            sed -i \
+              -e 's|http://archive.ubuntu.com/ubuntu|http://old-releases.ubuntu.com/ubuntu|g' \
+              -e 's|http://security.ubuntu.com/ubuntu|http://old-releases.ubuntu.com/ubuntu|g' \
+              /etc/apt/sources.list
+          }
+          apt-get update \
+            || { echo "::warning::apt update (archive) failed, falling back to old-releases"; fix_sources; apt-get update; }
+
           apt-get install -y --no-install-recommends \
             git ca-certificates curl build-essential pkg-config python3
 
@@ -54,7 +67,15 @@ jobs:
       - name: Install Linux build dependencies
         timeout-minutes: 30
         run: |
-          apt-get update
+          set -e
+          fix_sources() {
+            sed -i \
+              -e 's|http://archive.ubuntu.com/ubuntu|http://old-releases.ubuntu.com/ubuntu|g' \
+              -e 's|http://security.ubuntu.com/ubuntu|http://old-releases.ubuntu.com/ubuntu|g' \
+              /etc/apt/sources.list
+          }
+          apt-get update \
+            || { echo "::warning::apt update (archive) failed, falling back to old-releases"; fix_sources; apt-get update; }
           apt-get install -y --no-install-recommends \
             -o Acquire::Retries=5 \
             -o Acquire::http::Timeout=60 \
@@ -75,13 +96,35 @@ jobs:
           set -o pipefail
           npm run tauri build -- --target x86_64-unknown-linux-gnu --bundles appimage 2>&1 | tee build.log
 
+      - name: Upload build log (always)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Report success
+        if: success()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_STATUS: ok
+        run: python3 .github/scripts/ci_report.py
+
       - name: Surface build error
         if: failure()
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python3 .github/scripts/surface_error.py
+          BUILD_STATUS: fail
+        run: |
+          python3 .github/scripts/ci_report.py
+          echo "=== build.log tail (also uploaded as artifact 'build-log') ==="
+          tail -n 150 build.log
 
       - name: Upload AppImage
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: dbx-desktop-appimage

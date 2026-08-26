@@ -1,0 +1,10 @@
+/Users/fangwenqi/workspace/dbx-desktop/src-tauri/target/debug/deps/tauri_build-0ad546c799768e34.d: /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tauri-build-1.5.6/src/lib.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tauri-build-1.5.6/src/allowlist.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tauri-build-1.5.6/src/static_vcruntime.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tauri-build-1.5.6/src/window-app-manifest.xml
+
+/Users/fangwenqi/workspace/dbx-desktop/src-tauri/target/debug/deps/libtauri_build-0ad546c799768e34.rlib: /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tauri-build-1.5.6/src/lib.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tauri-build-1.5.6/src/allowlist.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tauri-build-1.5.6/src/static_vcruntime.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tauri-build-1.5.6/src/window-app-manifest.xml
+
+/Users/fangwenqi/workspace/dbx-desktop/src-tauri/target/debug/deps/libtauri_build-0ad546c799768e34.rmeta: /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tauri-build-1.5.6/src/lib.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tauri-build-1.5.6/src/allowlist.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tauri-build-1.5.6/src/static_vcruntime.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tauri-build-1.5.6/src/window-app-manifest.xml
+
+/Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tauri-build-1.5.6/src/lib.rs:
+/Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tauri-build-1.5.6/src/allowlist.rs:
+/Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tauri-build-1.5.6/src/static_vcruntime.rs:
+/Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tauri-build-1.5.6/src/window-app-manifest.xml:

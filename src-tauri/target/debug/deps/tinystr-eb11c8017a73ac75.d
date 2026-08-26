@@ -1,0 +1,12 @@
+/Users/fangwenqi/workspace/dbx-desktop/src-tauri/target/debug/deps/tinystr-eb11c8017a73ac75.d: /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tinystr-0.8.4/src/lib.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tinystr-0.8.4/src/macros.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tinystr-0.8.4/src/ascii.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tinystr-0.8.4/src/asciibyte.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tinystr-0.8.4/src/error.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tinystr-0.8.4/src/int_ops.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tinystr-0.8.4/src/unvalidated.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tinystr-0.8.4/src/ule.rs
+
+/Users/fangwenqi/workspace/dbx-desktop/src-tauri/target/debug/deps/libtinystr-eb11c8017a73ac75.rmeta: /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tinystr-0.8.4/src/lib.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tinystr-0.8.4/src/macros.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tinystr-0.8.4/src/ascii.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tinystr-0.8.4/src/asciibyte.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tinystr-0.8.4/src/error.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tinystr-0.8.4/src/int_ops.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tinystr-0.8.4/src/unvalidated.rs /Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tinystr-0.8.4/src/ule.rs
+
+/Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tinystr-0.8.4/src/lib.rs:
+/Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tinystr-0.8.4/src/macros.rs:
+/Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tinystr-0.8.4/src/ascii.rs:
+/Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tinystr-0.8.4/src/asciibyte.rs:
+/Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tinystr-0.8.4/src/error.rs:
+/Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tinystr-0.8.4/src/int_ops.rs:
+/Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tinystr-0.8.4/src/unvalidated.rs:
+/Users/fangwenqi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tinystr-0.8.4/src/ule.rs:
