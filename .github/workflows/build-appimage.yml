@@ -2,6 +2,10 @@ name: Build AppImage
 
 on:
   workflow_dispatch:
+  # TEMP: 临时允许 push 到 master 触发，便于无 token 环境下由 AI 启动/重试构建。
+  # 构建稳定通过后请移除此段，恢复为仅 workflow_dispatch。
+  push:
+    branches: [master]
 
 permissions:
   contents: read
