@@ -1,5 +1,37 @@
-=== build.log head (first 1 lines) ===
-(workspace build.log missing; content from /tmp/ci.log)
+=== build.log head (first 17 lines) ===
+=== build start: Wed Aug 26 11:50:17 UTC 2026 ===
+=== pwd: /__w/dbx-desktop/dbx-desktop / id: root ===
+=== tool versions ===
+v22.23.2
+10.9.8
+cargo 1.98.0 (797e8a9bc 2026-08-05)
+rustc 1.98.0 (88d9e12ae 2026-08-18)
+=== tauri cli ===
+tauri-cli 1.6.3
+=== tauri build ===
 
-=== build.log tail (last 1 of 1 lines) ===
-(workspace build.log missing; content from /tmp/ci.log)
+> dbx-desktop@0.1.0 tauri
+> tauri build --target x86_64-unknown-linux-gnu --bundles appimage
+
+[1m[91merror[0m: the package 'dbx-desktop' does not contain this feature: custom-protocol
+       Error failed to build app: failed to build app
+=== TAURI_BUILD_EXIT=1 ===
+
+=== build.log tail (last 17 of 17 lines) ===
+=== build start: Wed Aug 26 11:50:17 UTC 2026 ===
+=== pwd: /__w/dbx-desktop/dbx-desktop / id: root ===
+=== tool versions ===
+v22.23.2
+10.9.8
+cargo 1.98.0 (797e8a9bc 2026-08-05)
+rustc 1.98.0 (88d9e12ae 2026-08-18)
+=== tauri cli ===
+tauri-cli 1.6.3
+=== tauri build ===
+
+> dbx-desktop@0.1.0 tauri
+> tauri build --target x86_64-unknown-linux-gnu --bundles appimage
+
+[1m[91merror[0m: the package 'dbx-desktop' does not contain this feature: custom-protocol
+       Error failed to build app: failed to build app
+=== TAURI_BUILD_EXIT=1 ===
