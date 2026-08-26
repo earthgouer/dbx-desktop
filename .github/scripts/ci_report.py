@@ -124,3 +124,11 @@ else:
         if len(content) > 60000:
             content = content[:60000] + "\n...[truncated]..."
     put_file("build.log", content.encode(), "ci: build log (auto)")
+    # Always mirror the probe diagnostics to its own file on ci-logs.
+    for probe in ("/tmp/probe.log",):
+        try:
+            with open(probe, "r", errors="replace") as f:
+                put_file("probe.log", f.read().encode(), "ci: probe log (auto)")
+            break
+        except Exception:  # noqa: BLE001
+            continue

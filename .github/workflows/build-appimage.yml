@@ -115,24 +115,26 @@ jobs:
 
       - name: Build AppImage
         run: |
-          set -o pipefail
-          # Log to /tmp (guaranteed writable in the container), then mirror to
-          # build.log so the artifact and ci-logs channel always get the truth.
-          {
-            echo "=== build start: $(date -u) ==="
-            echo "=== pwd: $(pwd) / id: $(id -un) ==="
-            echo "=== tool versions ==="
-            node --version 2>&1
-            npm --version 2>&1
-            cargo --version 2>&1
-            rustc --version 2>&1
-            echo "=== tauri cli ==="
-            npx tauri --version 2>&1 || echo "tauri cli FAILED (exit $?)"
-            echo "=== tauri build ==="
-            npm run tauri build -- --target x86_64-unknown-linux-gnu --bundles appimage 2>&1
-            echo "=== tauri build exit=$? ==="
-          } > /tmp/ci.log 2>&1
+          set -x
+          # Flat, sequential appends — no compound { } / ( ) / pipes here, so
+          # there is nothing bash can fail on at parse time. Every line's
+          # output (including errors) lands in /tmp/ci.log.
+          : > /tmp/ci.log
+          set +e
+          echo "=== build start: $(date -u) ===" >> /tmp/ci.log
+          echo "=== pwd: $(pwd) / id: $(id -un) ===" >> /tmp/ci.log
+          echo "=== tool versions ===" >> /tmp/ci.log
+          node --version >> /tmp/ci.log 2>&1
+          npm --version >> /tmp/ci.log 2>&1
+          cargo --version >> /tmp/ci.log 2>&1
+          rustc --version >> /tmp/ci.log 2>&1
+          echo "=== tauri cli ===" >> /tmp/ci.log
+          npx tauri --version >> /tmp/ci.log 2>&1
+          echo "=== tauri build ===" >> /tmp/ci.log
+          npm run tauri build -- --target x86_64-unknown-linux-gnu --bundles appimage >> /tmp/ci.log 2>&1
           ec=$?
+          set -e
+          echo "=== TAURI_BUILD_EXIT=$ec ===" >> /tmp/ci.log
           cp /tmp/ci.log build.log 2>/dev/null || echo "cp to build.log failed; full log in /tmp/ci.log"
           echo "=== /tmp/ci.log tail (last 80 lines) ==="
           tail -n 80 /tmp/ci.log
