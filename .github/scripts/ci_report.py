@@ -99,9 +99,21 @@ if STATUS == "ok":
         lines.append("appimage=NONE_FOUND")
     put_file("success.log", ("\n".join(lines) + "\n").encode(), "ci: build success")
 else:
-    try:
-        with open("build.log", "r", errors="replace") as f:
-            raw = f.read()
+    raw = None
+    src = "build.log"
+    for candidate in ("build.log", "/tmp/ci.log", "/tmp/probe.log"):
+        try:
+            with open(candidate, "r", errors="replace") as f:
+                raw = f.read()
+            src = candidate
+            break
+        except Exception:  # noqa: BLE001
+            continue
+    if raw is None:
+        content = "(build.log unavailable: no build.log, /tmp/ci.log or /tmp/probe.log found)"
+    else:
+        if src != "build.log":
+            raw = f"(workspace build.log missing; content from {src})\n" + raw
         # Push enough context: first 30 lines (headers/versions) + last 300.
         lines = raw.splitlines()
         head = lines[:30]
@@ -111,6 +123,4 @@ else:
         content = "\n".join(body)
         if len(content) > 60000:
             content = content[:60000] + "\n...[truncated]..."
-    except Exception as e:  # noqa: BLE001
-        content = f"(build.log unavailable: {e})"
     put_file("build.log", content.encode(), "ci: build log (auto)")

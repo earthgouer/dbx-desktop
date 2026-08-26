@@ -91,14 +91,35 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Probe workspace writability
+        if: always()
+        run: |
+          {
+            echo "=== probe: $(date -u) ==="
+            echo "SHELL=$SHELL  GITHUB_WORKSPACE=$GITHUB_WORKSPACE"
+            pwd
+            id
+            echo "--- touch build.log in cwd ---"
+            touch build.log 2>&1 && echo "TOUCH build.log OK" && ls -la build.log && rm -f build.log || echo "TOUCH build.log FAILED"
+            echo "--- touch /tmp/ci.log ---"
+            touch /tmp/ci.log 2>&1 && echo "/tmp OK" || echo "/tmp FAILED"
+            echo "--- workspace dir perms ---"
+            ls -ld "$(pwd)" "$(dirname "$(pwd)")" 2>&1
+            echo "--- mounts ---"
+            mount 2>/dev/null | grep -E "workspace|__w|overlay|/ " | head -4 || echo "(no mount info)"
+            echo "--- df ---"
+            df -h . 2>&1 | tail -1
+            echo "--- cwd listing ---"
+            ls -la 2>&1 | head -20
+          } 2>&1 | tee /tmp/probe.log
+
       - name: Build AppImage
         run: |
           set -o pipefail
-          # Redirect (not pipe) so build.log is created the moment the step
-          # starts — the previous `| tee build.log` produced NO build.log at
-          # all, which means the command died before the pipeline even ran.
-          # We also dump tool versions first so the log is never empty.
+          # Log to /tmp (guaranteed writable in the container), then mirror to
+          # build.log so the artifact and ci-logs channel always get the truth.
           {
+            echo "=== build start: $(date -u) ==="
             echo "=== pwd: $(pwd) / id: $(id -un) ==="
             echo "=== tool versions ==="
             node --version 2>&1
@@ -110,10 +131,11 @@ jobs:
             echo "=== tauri build ==="
             npm run tauri build -- --target x86_64-unknown-linux-gnu --bundles appimage 2>&1
             echo "=== tauri build exit=$? ==="
-          } > build.log 2>&1
+          } > /tmp/ci.log 2>&1
           ec=$?
-          echo "=== build.log tail (last 80 lines) ==="
-          tail -n 80 build.log 2>&1
+          cp /tmp/ci.log build.log 2>/dev/null || echo "cp to build.log failed; full log in /tmp/ci.log"
+          echo "=== /tmp/ci.log tail (last 80 lines) ==="
+          tail -n 80 /tmp/ci.log
           echo "=== TAURI_BUILD_EXIT=$ec ==="
           exit $ec
 
@@ -122,8 +144,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: build-log
-          path: build.log
-          if-no-files-found: error
+          path: |
+            /tmp/ci.log
+            /tmp/probe.log
+            build.log
+          if-no-files-found: warn
           retention-days: 7
 
       - name: Report success
