@@ -114,6 +114,12 @@ jobs:
           } 2>&1 | tee /tmp/probe.log
 
       - name: Build AppImage
+        env:
+          # Reduce parallel rustc jobs: the default parallelism can OOM-kill
+          # the container mid-compile (the previous run died silently right
+          # after "Compiling icu_provider v2.3.0" with no error in the log).
+          CARGO_BUILD_JOBS: "2"
+          CARGO_INCREMENTAL: "0"
         run: |
           set -x
           # Flat, sequential appends — no compound { } / ( ) / pipes here, so
@@ -123,6 +129,10 @@ jobs:
           set +e
           echo "=== build start: $(date -u) ===" >> /tmp/ci.log
           echo "=== pwd: $(pwd) / id: $(id -un) ===" >> /tmp/ci.log
+          echo "=== MEM/DF ===" >> /tmp/ci.log
+          free -m >> /tmp/ci.log 2>&1
+          df -h / /tmp /__w >> /tmp/ci.log 2>&1
+          nproc >> /tmp/ci.log 2>&1
           echo "=== tool versions ===" >> /tmp/ci.log
           node --version >> /tmp/ci.log 2>&1
           npm --version >> /tmp/ci.log 2>&1

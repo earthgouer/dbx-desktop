@@ -114,15 +114,11 @@ else:
     else:
         if src != "build.log":
             raw = f"(workspace build.log missing; content from {src})\n" + raw
-        # Push enough context: first 30 lines (headers/versions) + last 300.
-        lines = raw.splitlines()
-        head = lines[:30]
-        tail = lines[-300:]
-        body = ["=== build.log head (first %d lines) ===" % len(head)] + head
-        body += ["", "=== build.log tail (last %d of %d lines) ===" % (len(tail), len(lines))] + tail
-        content = "\n".join(body)
-        if len(content) > 60000:
-            content = content[:60000] + "\n...[truncated]..."
+        # Push the FULL log (not head/tail) so errors in the middle are never
+        # trimmed away; cap at 200k chars.
+        content = raw
+        if len(content) > 200000:
+            content = content[:200000] + "\n...[truncated at 200k chars]..."
     put_file("build.log", content.encode(), "ci: build log (auto)")
     # Always mirror the probe diagnostics to its own file on ci-logs.
     for probe in ("/tmp/probe.log",):
