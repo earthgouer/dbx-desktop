@@ -2,39 +2,27 @@ name: Build AppImage
 
 on:
   workflow_dispatch:
-  # TEMP: 临时允许 push 到 master 触发，便于无 token 环境下由 AI 启动/重试构建。
-  # 构建稳定通过后请移除此段，恢复为仅 workflow_dispatch。
+  # TEMP: 验证清理后的管线后再移除（恢复为仅 workflow_dispatch）。
   push:
     branches: [master]
 
 permissions:
-  # ci_report.py writes build.log / success.log to the ci-logs branch via the
-  # Contents API; contents: write also covers artifact operations.
-  contents: write
-  # upload-artifact@v4 needs actions: write; declaring `permissions:` at the
-  # workflow level otherwise strips every permission not listed here.
+  contents: read
   actions: write
 
 env:
   CARGO_TERM_COLOR: always
-  # Prevent any apt post-install script from waiting on an interactive
-  # debconf prompt (e.g. tzdata / locale), which is the usual cause of a
-  # "stuck forever" apt-get install inside containers.
+  # 防止 apt 的 post-install 脚本在容器内等交互输入（tzdata/locale 等）
   DEBIAN_FRONTEND: noninteractive
 
 jobs:
   build-appimage:
     name: Build Linux AppImage (glibc 2.31)
     runs-on: ubuntu-22.04
-    # GitHub no longer offers an ubuntu-20.04 hosted runner, so we pin the
-    # Ubuntu 20.04 container instead. Ubuntu 20.04 ships glibc 2.31 and
-    # WebKitGTK 4.0 (libwebkit2gtk-4.0), which is exactly what 中国麒麟 V10
-    # (glibc 2.31, WebKitGTK 4.0) provides — building here yields a binary
-    # that runs on the target without GLIBC / WebKit version mismatches.
-    #
-    # NOTE: Ubuntu 20.04 (focal) left standard support in 2025, so its packages
-    # may have moved to old-releases.ubuntu.com. The apt steps below fall back
-    # to old-releases automatically if archive.ubuntu.com fails.
+    # Ubuntu 20.04 提供 glibc 2.31 + WebKitGTK 4.0（libwebkit2gtk-4.0），
+    # 与中国麒麟 V10 (glibc 2.31, WebKitGTK 4.0) 完全一致。
+    # 注意：focal 已于 2025 年退出标准支持，apt 源可能已迁移到
+    # old-releases.ubuntu.com，下面做了自动兜底。
     container:
       image: ubuntu:20.04
     timeout-minutes: 120
@@ -53,7 +41,8 @@ jobs:
             || { echo "::warning::apt update (archive) failed, falling back to old-releases"; fix_sources; apt-get update; }
 
           apt-get install -y --no-install-recommends \
-            git ca-certificates curl build-essential pkg-config python3 wget file libfuse2 desktop-file-utils
+            git ca-certificates curl build-essential pkg-config python3 \
+            wget file libfuse2 desktop-file-utils
 
       - uses: actions/checkout@v4
 
@@ -91,112 +80,27 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Probe workspace writability
-        if: always()
-        run: |
-          {
-            echo "=== probe: $(date -u) ==="
-            echo "SHELL=$SHELL  GITHUB_WORKSPACE=$GITHUB_WORKSPACE"
-            pwd
-            id
-            echo "--- touch build.log in cwd ---"
-            touch build.log 2>&1 && echo "TOUCH build.log OK" && ls -la build.log && rm -f build.log || echo "TOUCH build.log FAILED"
-            echo "--- touch /tmp/ci.log ---"
-            touch /tmp/ci.log 2>&1 && echo "/tmp OK" || echo "/tmp FAILED"
-            echo "--- workspace dir perms ---"
-            ls -ld "$(pwd)" "$(dirname "$(pwd)")" 2>&1
-            echo "--- mounts ---"
-            mount 2>/dev/null | grep -E "workspace|__w|overlay|/ " | head -4 || echo "(no mount info)"
-            echo "--- df ---"
-            df -h . 2>&1 | tail -1
-            echo "--- cwd listing ---"
-            ls -la 2>&1 | head -20
-          } 2>&1 | tee /tmp/probe.log
-
       - name: Build AppImage
         env:
-          # Reduce parallel rustc jobs: the default parallelism can OOM-kill
-          # the container mid-compile (the previous run died silently right
-          # after "Compiling icu_provider v2.3.0" with no error in the log).
+          # 降低并行 rustc 数，避免容器内高并发编译时的资源竞争
           CARGO_BUILD_JOBS: "2"
           CARGO_INCREMENTAL: "0"
         run: |
-          set -x
-          # Flat, sequential appends — no compound { } / ( ) / pipes here, so
-          # there is nothing bash can fail on at parse time. Every line's
-          # output (including errors) lands in /tmp/ci.log.
-          : > /tmp/ci.log
-          set +e
-          echo "=== build start: $(date -u) ===" >> /tmp/ci.log
-          echo "=== pwd: $(pwd) / id: $(id -un) ===" >> /tmp/ci.log
-          echo "=== MEM/DF ===" >> /tmp/ci.log
-          free -m >> /tmp/ci.log 2>&1
-          df -h / /tmp /__w >> /tmp/ci.log 2>&1
-          nproc >> /tmp/ci.log 2>&1
-          echo "=== tool versions ===" >> /tmp/ci.log
-          node --version >> /tmp/ci.log 2>&1
-          npm --version >> /tmp/ci.log 2>&1
-          cargo --version >> /tmp/ci.log 2>&1
-          rustc --version >> /tmp/ci.log 2>&1
-          echo "=== tauri cli ===" >> /tmp/ci.log
-          npx tauri --version >> /tmp/ci.log 2>&1
-          echo "=== tauri build ===" >> /tmp/ci.log
-          npm run tauri build -- --target x86_64-unknown-linux-gnu --bundles appimage >> /tmp/ci.log 2>&1
+          npm run tauri build -- --target x86_64-unknown-linux-gnu --bundles appimage > build.log 2>&1
           ec=$?
-          if [ "$ec" -ne 0 ]; then
-            # Tauri v1's appimage.sh runs with `set -e` + `wget -q` so failures
-            # are silent. Re-run the generated script with tracing to expose
-            # the exact failing line.
-            SH="src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/build_appimage.sh"
-            if [ -f "$SH" ]; then
-              echo "=== manual appimage.sh trace (bash -x) ===" >> /tmp/ci.log
-              echo "which wget: $(command -v wget || echo NONE)" >> /tmp/ci.log
-              echo "which file: $(command -v file || echo NONE)" >> /tmp/ci.log
-              bash -x "$SH" >> /tmp/ci.log 2>&1
-              echo "=== manual appimage.sh exit=$? ===" >> /tmp/ci.log
-            else
-              echo "=== build_appimage.sh NOT FOUND ===" >> /tmp/ci.log
-              ls -la src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/ >> /tmp/ci.log 2>&1
-            fi
-          fi
-          set -e
-          echo "=== TAURI_BUILD_EXIT=$ec ===" >> /tmp/ci.log
-          cp /tmp/ci.log build.log 2>/dev/null || echo "cp to build.log failed; full log in /tmp/ci.log"
-          echo "=== /tmp/ci.log tail (last 80 lines) ==="
-          tail -n 80 /tmp/ci.log
+          echo "=== build.log tail (last 60 lines) ==="
+          tail -n 60 build.log
           echo "=== TAURI_BUILD_EXIT=$ec ==="
           exit $ec
 
-      - name: Upload build log (always)
-        if: always()
+      - name: Upload build log (on failure)
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: build-log
-          path: |
-            /tmp/ci.log
-            /tmp/probe.log
-            build.log
+          path: build.log
           if-no-files-found: warn
           retention-days: 7
-
-      - name: Report success
-        if: success()
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ github.token }}
-          BUILD_STATUS: ok
-        run: python3 .github/scripts/ci_report.py
-
-      - name: Surface build error
-        if: failure()
-        env:
-          GH_TOKEN: ${{ github.token }}
-          BUILD_STATUS: fail
-        run: |
-          python3 .github/scripts/ci_report.py || echo "::warning::ci_report.py failed"
-          echo "=== build.log tail (also uploaded as artifact 'build-log') ==="
-          tail -n 150 build.log 2>&1 || true
-          exit 0
 
       - name: Upload AppImage
         if: success()
