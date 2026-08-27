@@ -12,17 +12,6 @@
     "version": "0.1.0"
   },
   "tauri": {
-    "windows": [
-      {
-        "label": "main",
-        "title": "DBX Desktop",
-        "width": 800,
-        "height": 600,
-        "minWidth": 800,
-        "minHeight": 600,
-        "center": true
-      }
-    ],
     "security": {
       "csp": null,
       "dangerousRemoteDomainIpcAccess": [

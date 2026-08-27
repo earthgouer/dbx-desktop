@@ -35,6 +35,42 @@ const REMOTE_PROBE_TIMEOUT_MS: u64 = 3000;
 const INSTALL_HINT: &str =
     "本机未检测到 dbx 命令。请确认 dbx 已加入系统 PATH，安装完成后点击重试。";
 
+/// Tauri v2 -> v1 IPC shim, injected as a webview initialization script.
+///
+/// The dbx web UI (http://127.0.0.1:4224, a third-party page we cannot edit)
+/// is written against the Tauri **v2** bridge (`window.__TAURI_INTERNALS__`),
+/// but this shell is Tauri **v1**, which never defines that object. This shim
+/// maps the v2 surface onto v1 (`window.__TAURI__.invoke`) and — crucially —
+/// prefixes every failure with the command name, so the dbx UI's own error
+/// dialog tells us exactly which commands it needs registered on the Rust side.
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+const TAURI_V2_SHIM: &str = r#"(function () {
+  if (window.__TAURI_INTERNALS__) return;
+  window.__TAURI_INTERNALS__ = {
+    invoke: function (cmd, args) {
+      args = args || {};
+      if (!window.__TAURI__ || typeof window.__TAURI__.invoke !== 'function') {
+        return Promise.reject(new Error('[dbx-shim] Tauri v1 bridge unavailable'));
+      }
+      return window.__TAURI__.invoke(cmd, args).catch(function (e) {
+        var msg = e && e.message ? e.message : String(e);
+        throw new Error('[dbx-shim] invoke("' + cmd + '") failed: ' + msg);
+      });
+    },
+    transformCallback: function (cb) {
+      return window.__TAURI__ && typeof window.__TAURI__.transformCallback === 'function'
+        ? window.__TAURI__.transformCallback(cb)
+        : cb;
+    },
+    convertFileSrc: function (p) {
+      return window.__TAURI__ && typeof window.__TAURI__.convertFileSrc === 'function'
+        ? window.__TAURI__.convertFileSrc(p)
+        : p;
+    }
+  };
+})();"#;
+
+
 #[cfg(target_os = "windows")]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 #[cfg(target_os = "windows")]
@@ -626,6 +662,23 @@ pub fn run() {
             }
         })
         .setup(|app| {
+            // Create the main window in Rust (not via tauri.conf.json) so we can
+            // attach the Tauri v2 -> v1 IPC shim as an initialization script.
+            // Init scripts run on EVERY page load of this webview, including the
+            // remote dbx web UI (http://127.0.0.1:4224) we navigate to later.
+            tauri::WindowBuilder::new(
+                app,
+                "main",
+                tauri::WindowUrl::App("index.html".into()),
+            )
+            .title("DBX Desktop")
+            .inner_size(800.0, 600.0)
+            .min_inner_size(800.0, 600.0)
+            .center()
+            .initialization_script(TAURI_V2_SHIM)
+            .build()
+            .map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
+
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             {
                 let handle = app.handle().clone();

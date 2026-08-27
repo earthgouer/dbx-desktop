@@ -2,6 +2,9 @@ name: Build AppImage
 
 on:
   workflow_dispatch:
+  # TEMP: v2→v1 shim 重建用 push 触发，验证后移除。
+  push:
+    branches: [master]
 
 permissions:
   contents: read
