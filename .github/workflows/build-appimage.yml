@@ -53,7 +53,7 @@ jobs:
             || { echo "::warning::apt update (archive) failed, falling back to old-releases"; fix_sources; apt-get update; }
 
           apt-get install -y --no-install-recommends \
-            git ca-certificates curl build-essential pkg-config python3
+            git ca-certificates curl build-essential pkg-config python3 wget file libfuse2 desktop-file-utils
 
       - uses: actions/checkout@v4
 
@@ -143,6 +143,22 @@ jobs:
           echo "=== tauri build ===" >> /tmp/ci.log
           npm run tauri build -- --target x86_64-unknown-linux-gnu --bundles appimage >> /tmp/ci.log 2>&1
           ec=$?
+          if [ "$ec" -ne 0 ]; then
+            # Tauri v1's appimage.sh runs with `set -e` + `wget -q` so failures
+            # are silent. Re-run the generated script with tracing to expose
+            # the exact failing line.
+            SH="src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/build_appimage.sh"
+            if [ -f "$SH" ]; then
+              echo "=== manual appimage.sh trace (bash -x) ===" >> /tmp/ci.log
+              echo "which wget: $(command -v wget || echo NONE)" >> /tmp/ci.log
+              echo "which file: $(command -v file || echo NONE)" >> /tmp/ci.log
+              bash -x "$SH" >> /tmp/ci.log 2>&1
+              echo "=== manual appimage.sh exit=$? ===" >> /tmp/ci.log
+            else
+              echo "=== build_appimage.sh NOT FOUND ===" >> /tmp/ci.log
+              ls -la src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/ >> /tmp/ci.log 2>&1
+            fi
+          fi
           set -e
           echo "=== TAURI_BUILD_EXIT=$ec ===" >> /tmp/ci.log
           cp /tmp/ci.log build.log 2>/dev/null || echo "cp to build.log failed; full log in /tmp/ci.log"
