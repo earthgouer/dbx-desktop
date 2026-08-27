@@ -1,36 +1,36 @@
-=== probe: Wed Aug 26 11:53:56 UTC 2026 ===
+=== probe: Thu Aug 27 00:28:09 UTC 2026 ===
 SHELL=  GITHUB_WORKSPACE=/__w/dbx-desktop/dbx-desktop
 /__w/dbx-desktop/dbx-desktop
 uid=0(root) gid=0(root) groups=0(root)
 --- touch build.log in cwd ---
 TOUCH build.log OK
--rw-r--r-- 1 root root 0 Aug 26 11:53 build.log
+-rw-r--r-- 1 root root 0 Aug 27 00:28 build.log
 --- touch /tmp/ci.log ---
 /tmp OK
 --- workspace dir perms ---
-drwxr-xr-x 3 1001 1001 4096 Aug 26 11:52 /__w/dbx-desktop
-drwxr-xr-x 9 1001 1001 4096 Aug 26 11:53 /__w/dbx-desktop/dbx-desktop
+drwxr-xr-x 3 1001 1001 4096 Aug 27 00:26 /__w/dbx-desktop
+drwxr-xr-x 9 1001 1001 4096 Aug 27 00:28 /__w/dbx-desktop/dbx-desktop
 --- mounts ---
-overlay on / type overlay (rw,relatime,lowerdir=/var/lib/docker/overlay2/l/X4T7ABFXVJMKDWDGHYP3OG6RWI:/var/lib/docker/overlay2/l/CSUD4ZJO53ENRESLTSWW7RQGVR,upperdir=/var/lib/docker/overlay2/65dc9a623df62c339c692f74a20c29300a665fb9566c85fd687ef9a9934884a2/diff,workdir=/var/lib/docker/overlay2/65dc9a623df62c339c692f74a20c29300a665fb9566c85fd687ef9a9934884a2/work,nouserxattr)
+overlay on / type overlay (rw,relatime,lowerdir=/var/lib/docker/overlay2/l/TGZACOD5PBN33ES77R7AQRN7F7:/var/lib/docker/overlay2/l/22AKGVS5FXIQHVT3TCTOUSVK7Z,upperdir=/var/lib/docker/overlay2/ecd2be46a39ca251bc7186f0d62d812b84e8b8b869541ed9537debf03da634a3/diff,workdir=/var/lib/docker/overlay2/ecd2be46a39ca251bc7186f0d62d812b84e8b8b869541ed9537debf03da634a3/work,nouserxattr)
 /dev/root on /__w type ext4 (rw,relatime,discard,errors=remount-ro)
-/dev/root on /__w/_actions type ext4 (rw,relatime,discard,errors=remount-ro)
 /dev/root on /__w/_temp type ext4 (rw,relatime,discard,errors=remount-ro)
+/dev/root on /__w/_actions type ext4 (rw,relatime,discard,errors=remount-ro)
 --- df ---
 /dev/root       146G   62G   85G  43% /__w
 --- cwd listing ---
 total 80
-drwxr-xr-x 9 1001 1001  4096 Aug 26 11:53 .
-drwxr-xr-x 3 1001 1001  4096 Aug 26 11:52 ..
-drwxr-xr-x 8 root root  4096 Aug 26 11:53 .git
-drwxr-xr-x 4 root root  4096 Aug 26 11:53 .github
-drwxr-xr-x 3 root root  4096 Aug 26 11:53 .workbuddy
--rw-r--r-- 1 root root  1081 Aug 26 11:53 LICENSE
--rw-r--r-- 1 root root   945 Aug 26 11:53 README.en.md
--rw-r--r-- 1 root root  1172 Aug 26 11:53 README.md
--rw-r--r-- 1 root root 18838 Aug 26 11:53 app-icon.png
-drwxr-xr-x 2 root root  4096 Aug 26 11:53 doc
-drwxr-xr-x 5 root root  4096 Aug 26 11:53 node_modules
--rw-r--r-- 1 root root  7509 Aug 26 11:53 package-lock.json
--rw-r--r-- 1 root root   236 Aug 26 11:53 package.json
-drwxr-xr-x 2 root root  4096 Aug 26 11:53 src
-drwxr-xr-x 6 root root  4096 Aug 26 11:53 src-tauri
+drwxr-xr-x 9 1001 1001  4096 Aug 27 00:28 .
+drwxr-xr-x 3 1001 1001  4096 Aug 27 00:26 ..
+drwxr-xr-x 8 root root  4096 Aug 27 00:27 .git
+drwxr-xr-x 4 root root  4096 Aug 27 00:27 .github
+drwxr-xr-x 3 root root  4096 Aug 27 00:27 .workbuddy
+-rw-r--r-- 1 root root  1081 Aug 27 00:27 LICENSE
+-rw-r--r-- 1 root root   945 Aug 27 00:27 README.en.md
+-rw-r--r-- 1 root root  1172 Aug 27 00:27 README.md
+-rw-r--r-- 1 root root 18838 Aug 27 00:27 app-icon.png
+drwxr-xr-x 2 root root  4096 Aug 27 00:27 doc
+drwxr-xr-x 5 root root  4096 Aug 27 00:28 node_modules
+-rw-r--r-- 1 root root  7509 Aug 27 00:27 package-lock.json
+-rw-r--r-- 1 root root   236 Aug 27 00:27 package.json
+drwxr-xr-x 2 root root  4096 Aug 27 00:27 src
+drwxr-xr-x 6 root root  4096 Aug 27 00:27 src-tauri
