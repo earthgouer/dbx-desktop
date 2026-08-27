@@ -2,9 +2,6 @@ name: Build AppImage
 
 on:
   workflow_dispatch:
-  # TEMP: 验证清理后的管线后再移除（恢复为仅 workflow_dispatch）。
-  push:
-    branches: [master]
 
 permissions:
   contents: read
