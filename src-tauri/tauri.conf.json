@@ -24,7 +24,14 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": null,
+      "dangerousRemoteDomainIpcAccess": [
+        {
+          "scheme": "http",
+          "domain": "127.0.0.1",
+          "windows": ["main"]
+        }
+      ]
     },
     "bundle": {
       "active": true,

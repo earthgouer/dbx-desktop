@@ -2,6 +2,9 @@ name: Build AppImage
 
 on:
   workflow_dispatch:
+  # TEMP: 本次重建（dangerousRemoteDomainIpcAccess 修复）用 push 自动触发，成功后移除。
+  push:
+    branches: [master]
 
 permissions:
   contents: read
